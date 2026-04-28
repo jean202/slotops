@@ -1,0 +1,13 @@
+.DS_Store
+
+.idea/
+.vscode/
+
+**/.gradle/
+**/build/
+**/out/
+
+*.iml
+
+slotops-api/.gradle/
+slotops-api/build/
