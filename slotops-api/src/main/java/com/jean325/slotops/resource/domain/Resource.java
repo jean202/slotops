@@ -55,23 +55,65 @@ public class Resource extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private ResourceStatus status;
 
-    protected Resource() {
+    protected Resource() {}
+
+    public Resource(
+        Organization organization,
+        Location location,
+        ResourceType resourceType,
+        String name,
+        Integer capacity,
+        Integer slotUnitMinutes,
+        Integer minBookingMinutes,
+        Integer maxBookingMinutes,
+        Integer bufferMinutes,
+        BigDecimal basePrice,
+        String currency
+    ) {
+        this.organization = organization;
+        this.location = location;
+        this.resourceType = resourceType;
+        this.name = name;
+        this.capacity = capacity;
+        this.slotUnitMinutes = slotUnitMinutes;
+        this.minBookingMinutes = minBookingMinutes;
+        this.maxBookingMinutes = maxBookingMinutes;
+        this.bufferMinutes = bufferMinutes;
+        this.basePrice = basePrice;
+        this.currency = currency;
+        this.status = ResourceStatus.ACTIVE;
     }
 
     public Long getId() {
         return id;
     }
 
+    public Organization getOrganization() {
+        return organization;
+    }
+
     public Long getOrganizationId() {
         return organization.getId();
+    }
+
+    public Location getLocation() {
+        return location;
     }
 
     public Long getLocationId() {
         return location.getId();
     }
 
+    public ResourceType getResourceType() {
+        return resourceType;
+    }
+
     public String getName() {
         return name;
+    }
+
+    public String getDescription() {
+        return description;
     }
 
     public Integer getCapacity() {
@@ -98,11 +140,31 @@ public class Resource extends BaseEntity {
         return basePrice;
     }
 
+    public String getCurrency() {
+        return currency;
+    }
+
     public ResourceStatus getStatus() {
         return status;
     }
 
-    public Location getLocation() {
-        return location;
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    public void setBasePrice(BigDecimal basePrice) {
+        this.basePrice = basePrice;
+    }
+
+    public void setStatus(ResourceStatus status) {
+        this.status = status;
     }
 }
