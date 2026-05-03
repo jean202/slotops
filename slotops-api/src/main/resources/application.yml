@@ -20,6 +20,11 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+jwt:
+  secret: your-super-secret-key-change-in-production-min-256-bits-long-string-for-hs256
+  expiration-ms: 3600000
+  refresh-expiration-ms: 604800000
+
 logging:
   level:
     org.hibernate.SQL: info
