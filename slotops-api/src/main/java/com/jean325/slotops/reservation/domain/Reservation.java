@@ -60,6 +60,12 @@ public class Reservation extends BaseEntity {
     protected Reservation() {
     }
 
+    // test-only constructor
+    public Reservation(OffsetDateTime startAt, OffsetDateTime endAt) {
+        this.startAt = startAt;
+        this.endAt = endAt;
+    }
+
     public Reservation(
             Long organizationId,
             Long locationId,
