@@ -1,6 +1,8 @@
 package com.jean325.slotops.availability.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.jean325.slotops.reservation.domain.Reservation;
 import java.time.OffsetDateTime;
@@ -18,7 +20,10 @@ class ReservationConflictCheckerTest {
     }
 
     private Reservation stubReservation(String start, String end) {
-        return new Reservation(odt(start), odt(end));
+        Reservation r = mock(Reservation.class);
+        when(r.getStartAt()).thenReturn(odt(start));
+        when(r.getEndAt()).thenReturn(odt(end));
+        return r;
     }
 
     private OffsetDateTime odt(String time) {
