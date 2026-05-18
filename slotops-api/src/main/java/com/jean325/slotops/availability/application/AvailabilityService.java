@@ -126,12 +126,6 @@ public class AvailabilityService {
         Resource resource = resourceRepository.findByIdAndStatus(resourceId, ResourceStatus.ACTIVE)
                 .orElseThrow(() -> new ApiException("RESOURCE_NOT_FOUND", "Resource not found", HttpStatus.NOT_FOUND));
 
-        if (durationMinutes % resource.getSlotUnitMinutes() != 0) {
-            throw new ApiException("INVALID_DURATION",
-                    "Duration must be a multiple of the resource's slot unit (" + resource.getSlotUnitMinutes() + " min)",
-                    HttpStatus.BAD_REQUEST);
-        }
-
         if (resource.getSlotUnitMinutes() == null) {
             throw new ApiException("RESOURCE_MISCONFIGURED",
                     "Resource slot unit is not configured", HttpStatus.INTERNAL_SERVER_ERROR);
