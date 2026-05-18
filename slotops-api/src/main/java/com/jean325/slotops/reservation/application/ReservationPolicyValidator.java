@@ -11,6 +11,14 @@ import org.springframework.stereotype.Component;
 public class ReservationPolicyValidator {
 
     public void validate(Resource resource, OffsetDateTime startAt, OffsetDateTime endAt, Integer guestCount) {
+        if (guestCount == null || guestCount < 1) {
+            throw new ApiException(
+                    "RESERVATION_INVALID_GUEST_COUNT",
+                    "Guest count must be at least 1.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
         if (!startAt.isBefore(endAt)) {
             throw new ApiException(
                     "RESERVATION_INVALID_TIME_RANGE",
