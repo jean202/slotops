@@ -138,6 +138,12 @@ public class AvailabilityService {
         }
 
         ZoneId timezone = ZoneId.of(resource.getLocation().getTimezone());
+
+        LocalDate today = LocalDate.now(timezone);
+        if (date.isBefore(today)) {
+            return new AvailableSlotsResponse(List.of());
+        }
+
         ZonedDateTime dayStart = date.atStartOfDay(timezone);
         ZonedDateTime dayEnd = date.plusDays(1).atStartOfDay(timezone);
 
