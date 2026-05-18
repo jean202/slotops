@@ -1,5 +1,6 @@
 package com.jean325.slotops.reservation.application;
 
+import com.jean325.slotops.availability.application.AvailabilityService;
 import com.jean325.slotops.customer.domain.Customer;
 import com.jean325.slotops.customer.domain.CustomerRepository;
 import com.jean325.slotops.global.error.ApiException;
@@ -29,6 +30,7 @@ public class ReservationService {
     private final ReservationPolicyValidator reservationPolicyValidator;
     private final ReservationCodeGenerator reservationCodeGenerator;
     private final EntityManager entityManager;
+    private final AvailabilityService availabilityService;
 
     public ReservationService(
             ResourceRepository resourceRepository,
@@ -36,7 +38,8 @@ public class ReservationService {
             ReservationRepository reservationRepository,
             ReservationPolicyValidator reservationPolicyValidator,
             ReservationCodeGenerator reservationCodeGenerator,
-            EntityManager entityManager
+            EntityManager entityManager,
+            AvailabilityService availabilityService
     ) {
         this.resourceRepository = resourceRepository;
         this.customerRepository = customerRepository;
@@ -44,6 +47,7 @@ public class ReservationService {
         this.reservationPolicyValidator = reservationPolicyValidator;
         this.reservationCodeGenerator = reservationCodeGenerator;
         this.entityManager = entityManager;
+        this.availabilityService = availabilityService;
     }
 
     @Transactional
@@ -58,11 +62,12 @@ public class ReservationService {
         OffsetDateTime startAt = OffsetDateTime.of(
                 request.date(),
                 request.startTime(),
-                ZoneId.of("Asia/Seoul").getRules().getOffset(request.date().atTime(request.startTime()))
+                ZoneId.of(resource.getLocation().getTimezone()).getRules().getOffset(request.date().atTime(request.startTime()))
         );
         OffsetDateTime endAt = startAt.plusMinutes(request.durationMinutes());
 
         reservationPolicyValidator.validate(resource, startAt, endAt, request.guestCount());
+        availabilityService.validateAvailability(resource, startAt, endAt);
 
         OffsetDateTime overlapStart = startAt.minusMinutes(resource.getBufferMinutes());
         OffsetDateTime overlapEnd = endAt.plusMinutes(resource.getBufferMinutes());
