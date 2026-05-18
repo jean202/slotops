@@ -10,6 +10,6 @@ public record CreateAvailabilityRuleRequest(
         @NotNull LocalTime startTime,
         @NotNull LocalTime endTime,
         @NotNull Boolean isOpen,
-        @NotNull Integer leadTimeMinutes,
+        @NotNull @Min(0) Integer leadTimeMinutes,
         LocalTime sameDayCutoffTime
 ) {}

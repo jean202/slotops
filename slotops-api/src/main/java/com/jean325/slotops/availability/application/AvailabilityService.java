@@ -132,6 +132,17 @@ public class AvailabilityService {
                     HttpStatus.BAD_REQUEST);
         }
 
+        if (resource.getSlotUnitMinutes() == null) {
+            throw new ApiException("RESOURCE_MISCONFIGURED",
+                    "Resource slot unit is not configured", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        if (durationMinutes % resource.getSlotUnitMinutes() != 0) {
+            throw new ApiException("INVALID_DURATION",
+                    "Duration must be a multiple of the resource's slot unit (" + resource.getSlotUnitMinutes() + " min)",
+                    HttpStatus.BAD_REQUEST);
+        }
+
         ZoneId timezone = ZoneId.of(resource.getLocation().getTimezone());
         ZonedDateTime dayStart = date.atStartOfDay(timezone);
         ZonedDateTime dayEnd = date.plusDays(1).atStartOfDay(timezone);
