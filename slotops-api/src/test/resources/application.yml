@@ -13,3 +13,11 @@ spring:
     open-in-view: false
   flyway:
     enabled: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+jwt:
+  secret: test-secret-key-for-testing-purposes-only-min-256-bits-long-string-here
+  expiration-ms: 3600000
+  refresh-expiration-ms: 604800000
