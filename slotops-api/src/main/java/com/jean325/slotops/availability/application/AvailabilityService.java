@@ -11,6 +11,7 @@ import com.jean325.slotops.availability.dto.BlackoutPeriodResponse;
 import com.jean325.slotops.availability.dto.CreateAvailabilityRuleRequest;
 import com.jean325.slotops.availability.dto.CreateBlackoutPeriodRequest;
 import com.jean325.slotops.global.error.ApiException;
+import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
 import com.jean325.slotops.reservation.domain.Reservation;
 import com.jean325.slotops.reservation.domain.ReservationRepository;
 import com.jean325.slotops.reservation.domain.ReservationStatus;
@@ -35,6 +36,7 @@ public class AvailabilityService {
     private final BlackoutPeriodRepository blackoutRepository;
     private final ResourceRepository resourceRepository;
     private final ReservationRepository reservationRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
     private final SlotCalculator slotCalculator;
 
     public AvailabilityService(
@@ -42,18 +44,28 @@ public class AvailabilityService {
             BlackoutPeriodRepository blackoutRepository,
             ResourceRepository resourceRepository,
             ReservationRepository reservationRepository,
+            OrganizationMemberRepository organizationMemberRepository,
             SlotCalculator slotCalculator
     ) {
         this.ruleRepository = ruleRepository;
         this.blackoutRepository = blackoutRepository;
         this.resourceRepository = resourceRepository;
         this.reservationRepository = reservationRepository;
+        this.organizationMemberRepository = organizationMemberRepository;
         this.slotCalculator = slotCalculator;
+    }
+
+    private void requireOrgMembership(Long orgId, Long userId) {
+        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)) {
+            throw new ApiException("FORBIDDEN",
+                    "User is not a member of this organization", HttpStatus.FORBIDDEN);
+        }
     }
 
     // --- Availability Rules ---
 
-    public AvailabilityRuleResponse createRule(Long orgId, Long resourceId, CreateAvailabilityRuleRequest request) {
+    public AvailabilityRuleResponse createRule(Long orgId, Long resourceId, Long userId, CreateAvailabilityRuleRequest request) {
+        requireOrgMembership(orgId, userId);
         Resource resource = getResourceForOrg(resourceId, orgId);
         AvailabilityRule rule = new AvailabilityRule(
                 resource,
@@ -68,14 +80,16 @@ public class AvailabilityService {
     }
 
     @Transactional(readOnly = true)
-    public List<AvailabilityRuleResponse> listRules(Long orgId, Long resourceId) {
+    public List<AvailabilityRuleResponse> listRules(Long orgId, Long resourceId, Long userId) {
+        requireOrgMembership(orgId, userId);
         getResourceForOrg(resourceId, orgId);
         return ruleRepository.findByResourceId(resourceId).stream()
                 .map(this::toRuleResponse).toList();
     }
 
-    public AvailabilityRuleResponse updateRule(Long orgId, Long resourceId, Long ruleId,
+    public AvailabilityRuleResponse updateRule(Long orgId, Long resourceId, Long ruleId, Long userId,
                                                 CreateAvailabilityRuleRequest request) {
+        requireOrgMembership(orgId, userId);
         getResourceForOrg(resourceId, orgId);
         AvailabilityRule rule = ruleRepository.findById(ruleId)
                 .filter(r -> r.getResource().getId().equals(resourceId))
@@ -88,7 +102,8 @@ public class AvailabilityService {
         return toRuleResponse(ruleRepository.save(rule));
     }
 
-    public void deleteRule(Long orgId, Long resourceId, Long ruleId) {
+    public void deleteRule(Long orgId, Long resourceId, Long ruleId, Long userId) {
+        requireOrgMembership(orgId, userId);
         getResourceForOrg(resourceId, orgId);
         AvailabilityRule rule = ruleRepository.findById(ruleId)
                 .filter(r -> r.getResource().getId().equals(resourceId))
@@ -98,20 +113,23 @@ public class AvailabilityService {
 
     // --- Blackout Periods ---
 
-    public BlackoutPeriodResponse createBlackout(Long orgId, Long resourceId, CreateBlackoutPeriodRequest request) {
+    public BlackoutPeriodResponse createBlackout(Long orgId, Long resourceId, Long userId, CreateBlackoutPeriodRequest request) {
+        requireOrgMembership(orgId, userId);
         Resource resource = getResourceForOrg(resourceId, orgId);
         BlackoutPeriod period = new BlackoutPeriod(resource, request.startAt(), request.endAt(), request.reason());
         return toBlackoutResponse(blackoutRepository.save(period));
     }
 
     @Transactional(readOnly = true)
-    public List<BlackoutPeriodResponse> listBlackouts(Long orgId, Long resourceId) {
+    public List<BlackoutPeriodResponse> listBlackouts(Long orgId, Long resourceId, Long userId) {
+        requireOrgMembership(orgId, userId);
         getResourceForOrg(resourceId, orgId);
         return blackoutRepository.findByResourceId(resourceId).stream()
                 .map(this::toBlackoutResponse).toList();
     }
 
-    public void deleteBlackout(Long orgId, Long resourceId, Long periodId) {
+    public void deleteBlackout(Long orgId, Long resourceId, Long periodId, Long userId) {
+        requireOrgMembership(orgId, userId);
         getResourceForOrg(resourceId, orgId);
         BlackoutPeriod period = blackoutRepository.findById(periodId)
                 .filter(p -> p.getResource().getId().equals(resourceId))

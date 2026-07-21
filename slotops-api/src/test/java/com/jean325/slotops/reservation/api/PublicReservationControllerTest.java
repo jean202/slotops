@@ -31,6 +31,7 @@ class PublicReservationControllerTest {
         jdbcTemplate.execute("delete from customers");
         jdbcTemplate.execute("delete from resources");
         jdbcTemplate.execute("delete from locations");
+        jdbcTemplate.execute("delete from organization_members");
         jdbcTemplate.execute("delete from organizations");
 
         jdbcTemplate.execute("""
