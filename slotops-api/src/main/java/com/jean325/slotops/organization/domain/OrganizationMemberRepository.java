@@ -9,5 +9,6 @@ import org.springframework.stereotype.Repository;
 public interface OrganizationMemberRepository extends JpaRepository<OrganizationMember, Long> {
     List<OrganizationMember> findByOrganizationId(Long organizationId);
     Optional<OrganizationMember> findByOrganizationIdAndUserId(Long organizationId, Long userId);
+    boolean existsByOrganizationIdAndUserId(Long organizationId, Long userId);
     List<OrganizationMember> findByUserId(Long userId);
 }

@@ -31,11 +31,25 @@ class AvailabilityControllerTest {
         jdbcTemplate.execute("delete from blackout_periods");
         jdbcTemplate.execute("delete from resources");
         jdbcTemplate.execute("delete from locations");
+        jdbcTemplate.execute("delete from organization_members");
         jdbcTemplate.execute("delete from organizations");
+        jdbcTemplate.execute("delete from users");
 
+        jdbcTemplate.execute("""
+                insert into users (id, email, password_hash, name, status, created_at, updated_at)
+                values (1, 'member@example.com', 'x', 'Member', 'ACTIVE', current_timestamp, current_timestamp)
+                """);
+        jdbcTemplate.execute("""
+                insert into users (id, email, password_hash, name, status, created_at, updated_at)
+                values (2, 'outsider@example.com', 'x', 'Outsider', 'ACTIVE', current_timestamp, current_timestamp)
+                """);
         jdbcTemplate.execute("""
                 insert into organizations (id, name, slug, status, created_at, updated_at)
                 values (1, 'Org', 'org', 'ACTIVE', current_timestamp, current_timestamp)
+                """);
+        jdbcTemplate.execute("""
+                insert into organization_members (organization_id, user_id, role, joined_at, created_at, updated_at)
+                values (1, 1, 'OWNER', current_timestamp, current_timestamp, current_timestamp)
                 """);
         jdbcTemplate.execute("""
                 insert into locations (id, organization_id, name, timezone, status, created_at, updated_at)
@@ -65,6 +79,7 @@ class AvailabilityControllerTest {
                 }
                 """;
         mockMvc.perform(post("/api/v1/organizations/1/resources/1/availability-rules")
+                        .requestAttr("userId", 1L)
                         .contentType("application/json").content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.dayOfWeek").value(1))
@@ -80,7 +95,8 @@ class AvailabilityControllerTest {
                     lead_time_minutes, created_at, updated_at
                 ) values (1, 2, '10:00', '17:00', true, 0, current_timestamp, current_timestamp)
                 """);
-        mockMvc.perform(get("/api/v1/organizations/1/resources/1/availability-rules"))
+        mockMvc.perform(get("/api/v1/organizations/1/resources/1/availability-rules")
+                        .requestAttr("userId", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1));
     }
@@ -95,8 +111,26 @@ class AvailabilityControllerTest {
                 }
                 """;
         mockMvc.perform(post("/api/v1/organizations/1/resources/1/blackout-periods")
+                        .requestAttr("userId", 1L)
                         .contentType("application/json").content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.reason").value("Holiday"));
+    }
+
+    @Test
+    void rejectsNonMemberWithForbidden() throws Exception {
+        String body = """
+                {
+                  "dayOfWeek": 1,
+                  "startTime": "09:00",
+                  "endTime": "18:00",
+                  "isOpen": true,
+                  "leadTimeMinutes": 60
+                }
+                """;
+        mockMvc.perform(post("/api/v1/organizations/1/resources/1/availability-rules")
+                        .requestAttr("userId", 2L)
+                        .contentType("application/json").content(body))
+                .andExpect(status().isForbidden());
     }
 }
