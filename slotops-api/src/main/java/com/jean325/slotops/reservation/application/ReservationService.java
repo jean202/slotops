@@ -5,6 +5,7 @@ import com.jean325.slotops.customer.domain.Customer;
 import com.jean325.slotops.customer.domain.CustomerRepository;
 import com.jean325.slotops.global.error.ApiException;
 import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
+import com.jean325.slotops.payment.application.PaymentService;
 import com.jean325.slotops.reservation.domain.Reservation;
 import com.jean325.slotops.reservation.domain.ReservationRepository;
 import com.jean325.slotops.reservation.domain.ReservationStatus;
@@ -37,6 +38,7 @@ public class ReservationService {
     private final EntityManager entityManager;
     private final AvailabilityService availabilityService;
     private final OrganizationMemberRepository organizationMemberRepository;
+    private final PaymentService paymentService;
 
     // Allowed source states keyed by the target state of a transition.
     private static final Map<ReservationStatus, Set<ReservationStatus>> ALLOWED_TRANSITIONS = Map.of(
@@ -54,7 +56,8 @@ public class ReservationService {
             ReservationCodeGenerator reservationCodeGenerator,
             EntityManager entityManager,
             AvailabilityService availabilityService,
-            OrganizationMemberRepository organizationMemberRepository
+            OrganizationMemberRepository organizationMemberRepository,
+            PaymentService paymentService
     ) {
         this.resourceRepository = resourceRepository;
         this.customerRepository = customerRepository;
@@ -64,6 +67,7 @@ public class ReservationService {
         this.entityManager = entityManager;
         this.availabilityService = availabilityService;
         this.organizationMemberRepository = organizationMemberRepository;
+        this.paymentService = paymentService;
     }
 
     @Transactional
@@ -122,6 +126,7 @@ public class ReservationService {
         );
 
         Reservation saved = reservationRepository.save(reservation);
+        paymentService.createForReservation(saved);
         return new PublicReservationResponse(
                 saved.getId(),
                 saved.getReservationCode(),

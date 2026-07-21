@@ -28,6 +28,7 @@ class PublicAvailabilityControllerTest {
     void setUp() {
         jdbcTemplate.execute("delete from availability_rules");
         jdbcTemplate.execute("delete from blackout_periods");
+        jdbcTemplate.execute("delete from payments");
         jdbcTemplate.execute("delete from reservations");
         jdbcTemplate.execute("delete from customers");
         jdbcTemplate.execute("delete from resources");

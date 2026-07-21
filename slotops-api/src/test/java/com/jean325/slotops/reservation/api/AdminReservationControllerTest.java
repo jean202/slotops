@@ -26,6 +26,7 @@ class AdminReservationControllerTest {
 
     @BeforeEach
     void setUp() {
+        jdbcTemplate.execute("delete from payments");
         jdbcTemplate.execute("delete from reservations");
         jdbcTemplate.execute("delete from customers");
         jdbcTemplate.execute("delete from availability_rules");
