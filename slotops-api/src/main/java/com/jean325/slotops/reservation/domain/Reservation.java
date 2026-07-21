@@ -96,12 +96,24 @@ public class Reservation extends BaseEntity {
         return id;
     }
 
+    public Long getOrganizationId() {
+        return organizationId;
+    }
+
+    public Long getLocationId() {
+        return locationId;
+    }
+
     public String getReservationCode() {
         return reservationCode;
     }
 
     public ReservationStatus getStatus() {
         return status;
+    }
+
+    public void changeStatus(ReservationStatus status) {
+        this.status = status;
     }
 
     public Resource getResource() {

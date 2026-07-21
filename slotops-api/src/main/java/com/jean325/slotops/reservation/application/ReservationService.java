@@ -4,9 +4,11 @@ import com.jean325.slotops.availability.application.AvailabilityService;
 import com.jean325.slotops.customer.domain.Customer;
 import com.jean325.slotops.customer.domain.CustomerRepository;
 import com.jean325.slotops.global.error.ApiException;
+import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
 import com.jean325.slotops.reservation.domain.Reservation;
 import com.jean325.slotops.reservation.domain.ReservationRepository;
 import com.jean325.slotops.reservation.domain.ReservationStatus;
+import com.jean325.slotops.reservation.dto.AdminReservationResponse;
 import com.jean325.slotops.reservation.dto.PublicCreateReservationRequest;
 import com.jean325.slotops.reservation.dto.PublicReservationResponse;
 import com.jean325.slotops.resource.domain.Resource;
@@ -15,7 +17,10 @@ import com.jean325.slotops.resource.domain.ResourceStatus;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import jakarta.persistence.EntityManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -31,6 +36,15 @@ public class ReservationService {
     private final ReservationCodeGenerator reservationCodeGenerator;
     private final EntityManager entityManager;
     private final AvailabilityService availabilityService;
+    private final OrganizationMemberRepository organizationMemberRepository;
+
+    // Allowed source states keyed by the target state of a transition.
+    private static final Map<ReservationStatus, Set<ReservationStatus>> ALLOWED_TRANSITIONS = Map.of(
+            ReservationStatus.CONFIRMED, EnumSet.of(ReservationStatus.PENDING),
+            ReservationStatus.CANCELLED, EnumSet.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED),
+            ReservationStatus.COMPLETED, EnumSet.of(ReservationStatus.CONFIRMED),
+            ReservationStatus.NO_SHOW, EnumSet.of(ReservationStatus.CONFIRMED)
+    );
 
     public ReservationService(
             ResourceRepository resourceRepository,
@@ -39,7 +53,8 @@ public class ReservationService {
             ReservationPolicyValidator reservationPolicyValidator,
             ReservationCodeGenerator reservationCodeGenerator,
             EntityManager entityManager,
-            AvailabilityService availabilityService
+            AvailabilityService availabilityService,
+            OrganizationMemberRepository organizationMemberRepository
     ) {
         this.resourceRepository = resourceRepository;
         this.customerRepository = customerRepository;
@@ -48,6 +63,7 @@ public class ReservationService {
         this.reservationCodeGenerator = reservationCodeGenerator;
         this.entityManager = entityManager;
         this.availabilityService = availabilityService;
+        this.organizationMemberRepository = organizationMemberRepository;
     }
 
     @Transactional
@@ -144,5 +160,83 @@ public class ReservationService {
         BigDecimal slots = BigDecimal.valueOf(durationMinutes)
                 .divide(BigDecimal.valueOf(resource.getSlotUnitMinutes()));
         return resource.getBasePrice().multiply(slots);
+    }
+
+    // --- Admin reservation workflow ---
+
+    @Transactional
+    public AdminReservationResponse confirm(Long orgId, Long reservationId, Long userId) {
+        return transition(orgId, reservationId, userId, ReservationStatus.CONFIRMED);
+    }
+
+    @Transactional
+    public AdminReservationResponse cancel(Long orgId, Long reservationId, Long userId) {
+        return transition(orgId, reservationId, userId, ReservationStatus.CANCELLED);
+    }
+
+    @Transactional
+    public AdminReservationResponse complete(Long orgId, Long reservationId, Long userId) {
+        return transition(orgId, reservationId, userId, ReservationStatus.COMPLETED);
+    }
+
+    @Transactional
+    public AdminReservationResponse markNoShow(Long orgId, Long reservationId, Long userId) {
+        return transition(orgId, reservationId, userId, ReservationStatus.NO_SHOW);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminReservationResponse> listForOrg(Long orgId, Long userId, ReservationStatus status) {
+        requireOrgMembership(orgId, userId);
+        List<Reservation> reservations = (status == null)
+                ? reservationRepository.findByOrganizationIdOrderByStartAtDesc(orgId)
+                : reservationRepository.findByOrganizationIdAndStatusOrderByStartAtDesc(orgId, status);
+        return reservations.stream().map(this::toAdminResponse).toList();
+    }
+
+    private AdminReservationResponse transition(Long orgId, Long reservationId, Long userId, ReservationStatus target) {
+        requireOrgMembership(orgId, userId);
+        Reservation reservation = getForOrg(reservationId, orgId);
+        if (!ALLOWED_TRANSITIONS.get(target).contains(reservation.getStatus())) {
+            throw new ApiException(
+                    "INVALID_RESERVATION_STATE_TRANSITION",
+                    "Cannot change reservation from " + reservation.getStatus() + " to " + target + ".",
+                    HttpStatus.CONFLICT
+            );
+        }
+        reservation.changeStatus(target);
+        return toAdminResponse(reservation);
+    }
+
+    private void requireOrgMembership(Long orgId, Long userId) {
+        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)) {
+            throw new ApiException("FORBIDDEN",
+                    "User is not a member of this organization", HttpStatus.FORBIDDEN);
+        }
+    }
+
+    private Reservation getForOrg(Long reservationId, Long orgId) {
+        return reservationRepository.findById(reservationId)
+                .filter(r -> r.getOrganizationId().equals(orgId))
+                .orElseThrow(() -> new ApiException(
+                        "RESERVATION_NOT_FOUND",
+                        "The requested reservation was not found.",
+                        HttpStatus.NOT_FOUND
+                ));
+    }
+
+    private AdminReservationResponse toAdminResponse(Reservation reservation) {
+        Resource resource = reservation.getResource();
+        Customer customer = reservation.getCustomer();
+        return new AdminReservationResponse(
+                reservation.getId(),
+                reservation.getReservationCode(),
+                reservation.getStatus().name(),
+                new AdminReservationResponse.ResourceSummary(resource.getId(), resource.getName()),
+                new AdminReservationResponse.CustomerSummary(customer.getName(), customer.getPhone()),
+                reservation.getStartAt(),
+                reservation.getEndAt(),
+                reservation.getGuestCount(),
+                reservation.getTotalAmount()
+        );
     }
 }

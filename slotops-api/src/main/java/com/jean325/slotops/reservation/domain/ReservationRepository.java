@@ -37,4 +37,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("windowEnd") OffsetDateTime windowEnd,
             @Param("activeStatuses") Collection<ReservationStatus> activeStatuses
     );
+
+    List<Reservation> findByOrganizationIdOrderByStartAtDesc(Long organizationId);
+
+    List<Reservation> findByOrganizationIdAndStatusOrderByStartAtDesc(
+            Long organizationId, ReservationStatus status);
 }
