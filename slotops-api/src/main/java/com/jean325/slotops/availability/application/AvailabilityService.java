@@ -18,6 +18,7 @@ import com.jean325.slotops.reservation.domain.ReservationStatus;
 import com.jean325.slotops.resource.domain.Resource;
 import com.jean325.slotops.resource.domain.ResourceRepository;
 import com.jean325.slotops.resource.domain.ResourceStatus;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -38,6 +39,7 @@ public class AvailabilityService {
     private final ReservationRepository reservationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final SlotCalculator slotCalculator;
+    private final Clock clock;
 
     public AvailabilityService(
             AvailabilityRuleRepository ruleRepository,
@@ -45,7 +47,8 @@ public class AvailabilityService {
             ResourceRepository resourceRepository,
             ReservationRepository reservationRepository,
             OrganizationMemberRepository organizationMemberRepository,
-            SlotCalculator slotCalculator
+            SlotCalculator slotCalculator,
+            Clock clock
     ) {
         this.ruleRepository = ruleRepository;
         this.blackoutRepository = blackoutRepository;
@@ -53,6 +56,7 @@ public class AvailabilityService {
         this.reservationRepository = reservationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
         this.slotCalculator = slotCalculator;
+        this.clock = clock;
     }
 
     private void requireOrgMembership(Long orgId, Long userId) {
@@ -157,7 +161,7 @@ public class AvailabilityService {
 
         ZoneId timezone = ZoneId.of(resource.getLocation().getTimezone());
 
-        LocalDate today = LocalDate.now(timezone);
+        LocalDate today = LocalDate.ofInstant(clock.instant(), timezone);
         if (date.isBefore(today)) {
             return new AvailableSlotsResponse(List.of());
         }
@@ -173,7 +177,7 @@ public class AvailabilityService {
                 List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
 
         List<SlotCalculator.AvailableSlot> slots = slotCalculator.calculate(
-                resource, rules, blackouts, reservations, date, durationMinutes, timezone, OffsetDateTime.now());
+                resource, rules, blackouts, reservations, date, durationMinutes, timezone, OffsetDateTime.now(clock));
 
         return new AvailableSlotsResponse(
                 slots.stream().map(s -> new AvailableSlotsResponse.Slot(s.startAt(), s.endAt())).toList()
@@ -206,7 +210,7 @@ public class AvailabilityService {
                     "Reservation is outside the resource's business hours.", HttpStatus.BAD_REQUEST);
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(clock);
         if (startAt.minusMinutes(rule.getLeadTimeMinutes()).isBefore(now)) {
             throw new ApiException("RESERVATION_LEAD_TIME_VIOLATION",
                     "Reservation does not meet the required lead time.", HttpStatus.BAD_REQUEST);

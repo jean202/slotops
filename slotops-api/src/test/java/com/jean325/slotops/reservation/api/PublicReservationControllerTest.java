@@ -4,15 +4,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.temporal.TemporalAdjusters;
+import com.jean325.slotops.support.FixedClockConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(FixedClockConfig.class)
 class PublicReservationControllerTest {
 
     @Autowired
@@ -27,12 +26,6 @@ class PublicReservationControllerTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    // Use future dates so the lead-time / past-date rules don't mask the behavior under test.
-    private static final ZoneId ZONE = ZoneId.of("Asia/Seoul");
-    private static final LocalDate MONDAY =
-            LocalDate.now(ZONE).with(TemporalAdjusters.next(DayOfWeek.MONDAY)).plusWeeks(1);
-    private static final LocalDate SATURDAY = MONDAY.plusDays(5);
 
     @BeforeEach
     void setUp() {
@@ -63,7 +56,7 @@ class PublicReservationControllerTest {
                     18000.00, 'KRW', 'ACTIVE', current_timestamp, current_timestamp
                 )
                 """);
-        // Rule applies to Monday (ISO day 1); tests target a future Monday.
+        // 2026-06-15 is a Monday (ISO day 1); clock is frozen at 2026-05-01.
         jdbcTemplate.execute("""
                 insert into availability_rules (
                     resource_id, day_of_week, start_time, end_time, is_open,
@@ -77,7 +70,7 @@ class PublicReservationControllerTest {
         String requestBody = """
                 {
                   "resourceId": 12,
-                  "date": "%s",
+                  "date": "2026-06-15",
                   "startTime": "10:00",
                   "durationMinutes": 120,
                   "guestCount": 3,
@@ -88,7 +81,7 @@ class PublicReservationControllerTest {
                   },
                   "specialRequest": "Need HDMI cable"
                 }
-                """.formatted(MONDAY);
+                """;
 
         mockMvc.perform(post("/api/v1/public/reservations")
                         .contentType("application/json")
@@ -114,17 +107,17 @@ class PublicReservationControllerTest {
                     created_at, updated_at
                 ) values (
                     1, 1, 1, 12, 1, 'RSV-20260615-ABCD', 'CONFIRMED',
-                    TIMESTAMP WITH TIME ZONE '%s 10:00:00+09:00',
-                    TIMESTAMP WITH TIME ZONE '%s 12:00:00+09:00',
+                    TIMESTAMP WITH TIME ZONE '2026-06-15 10:00:00+09:00',
+                    TIMESTAMP WITH TIME ZONE '2026-06-15 12:00:00+09:00',
                     2, 36000.00, 0, 0, 36000.00,
                     current_timestamp, current_timestamp
                 )
-                """.formatted(MONDAY, MONDAY));
+                """);
 
         String requestBody = """
                 {
                   "resourceId": 12,
-                  "date": "%s",
+                  "date": "2026-06-15",
                   "startTime": "11:00",
                   "durationMinutes": 60,
                   "guestCount": 2,
@@ -134,7 +127,7 @@ class PublicReservationControllerTest {
                     "phone": "010-1234-5678"
                   }
                 }
-                """.formatted(MONDAY);
+                """;
 
         mockMvc.perform(post("/api/v1/public/reservations")
                         .contentType("application/json")
@@ -145,11 +138,11 @@ class PublicReservationControllerTest {
 
     @Test
     void rejectsReservationOnClosedDay() throws Exception {
-        // Saturday (ISO 6) — no availability rule for day 6
+        // 2026-06-13 is a Saturday (ISO 6) — no availability rule for day 6
         String requestBody = """
                 {
                   "resourceId": 12,
-                  "date": "%s",
+                  "date": "2026-06-13",
                   "startTime": "10:00",
                   "durationMinutes": 60,
                   "guestCount": 2,
@@ -159,7 +152,7 @@ class PublicReservationControllerTest {
                     "phone": "010-0000-0000"
                   }
                 }
-                """.formatted(SATURDAY);
+                """;
         mockMvc.perform(post("/api/v1/public/reservations")
                         .contentType("application/json").content(requestBody))
                 .andExpect(status().isBadRequest())
