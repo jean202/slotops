@@ -4,6 +4,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +24,12 @@ class PublicAvailabilityControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JdbcTemplate jdbcTemplate;
+
+    // Use future dates so past-date rules don't mask the behavior under test.
+    private static final ZoneId ZONE = ZoneId.of("Asia/Seoul");
+    private static final LocalDate MONDAY =
+            LocalDate.now(ZONE).with(TemporalAdjusters.next(DayOfWeek.MONDAY)).plusWeeks(1);
+    private static final LocalDate SUNDAY = MONDAY.minusDays(1);
 
     @BeforeEach
     void setUp() {
@@ -50,7 +60,7 @@ class PublicAvailabilityControllerTest {
                     10000, 'KRW', 'ACTIVE', current_timestamp, current_timestamp
                 )
                 """);
-        // 2026-06-01 is a Monday (ISO dayOfWeek = 1)
+        // Rule applies to Monday (ISO dayOfWeek = 1); tests target a future Monday.
         jdbcTemplate.execute("""
                 insert into availability_rules (
                     resource_id, day_of_week, start_time, end_time, is_open,
@@ -62,7 +72,7 @@ class PublicAvailabilityControllerTest {
     @Test
     void returnsAvailableSlots() throws Exception {
         mockMvc.perform(get("/api/v1/public/resources/1/available-slots")
-                        .param("date", "2026-06-01")
+                        .param("date", MONDAY.toString())
                         .param("duration", "60"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slots").isArray())
@@ -73,7 +83,7 @@ class PublicAvailabilityControllerTest {
     void returnsEmptyForClosedDay() throws Exception {
         // Sunday (ISO 7) — no rule for that day → empty
         mockMvc.perform(get("/api/v1/public/resources/1/available-slots")
-                        .param("date", "2026-05-31")
+                        .param("date", SUNDAY.toString())
                         .param("duration", "60"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slots.length()").value(0));
@@ -82,7 +92,7 @@ class PublicAvailabilityControllerTest {
     @Test
     void returns400ForInvalidDuration() throws Exception {
         mockMvc.perform(get("/api/v1/public/resources/1/available-slots")
-                        .param("date", "2026-06-01")
+                        .param("date", MONDAY.toString())
                         .param("duration", "45"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_DURATION"));
@@ -93,12 +103,12 @@ class PublicAvailabilityControllerTest {
         jdbcTemplate.execute("""
                 insert into blackout_periods (resource_id, start_at, end_at, reason, created_at)
                 values (1,
-                    TIMESTAMP WITH TIME ZONE '2026-06-01 00:00:00+09:00',
-                    TIMESTAMP WITH TIME ZONE '2026-06-01 23:59:00+09:00',
+                    TIMESTAMP WITH TIME ZONE '%s 00:00:00+09:00',
+                    TIMESTAMP WITH TIME ZONE '%s 23:59:00+09:00',
                     'Closed', current_timestamp)
-                """);
+                """.formatted(MONDAY, MONDAY));
         mockMvc.perform(get("/api/v1/public/resources/1/available-slots")
-                        .param("date", "2026-06-01")
+                        .param("date", MONDAY.toString())
                         .param("duration", "60"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slots.length()").value(0));
