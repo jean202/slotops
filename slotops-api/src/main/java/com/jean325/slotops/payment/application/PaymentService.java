@@ -4,10 +4,12 @@ import com.jean325.slotops.global.error.ApiException;
 import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
 import com.jean325.slotops.payment.domain.Payment;
 import com.jean325.slotops.payment.domain.PaymentRepository;
+import com.jean325.slotops.payment.domain.RefundPolicy;
 import com.jean325.slotops.payment.dto.PaymentResponse;
 import com.jean325.slotops.payment.dto.UpdatePaymentRequest;
 import com.jean325.slotops.reservation.domain.Reservation;
 import com.jean325.slotops.reservation.domain.ReservationRepository;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import org.springframework.http.HttpStatus;
@@ -20,17 +22,20 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final ReservationRepository reservationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
+    private final RefundPolicy refundPolicy;
     private final Clock clock;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             ReservationRepository reservationRepository,
             OrganizationMemberRepository organizationMemberRepository,
+            RefundPolicy refundPolicy,
             Clock clock
     ) {
         this.paymentRepository = paymentRepository;
         this.reservationRepository = reservationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
+        this.refundPolicy = refundPolicy;
         this.clock = clock;
     }
 
@@ -38,6 +43,18 @@ public class PaymentService {
     @Transactional
     public void createForReservation(Reservation reservation) {
         paymentRepository.save(new Payment(reservation.getId()));
+    }
+
+    /**
+     * Refunds the reservation's payment according to the tiered cancellation
+     * policy, based on how far ahead of the start time it is being cancelled.
+     */
+    @Transactional
+    public void applyCancellationRefund(Reservation reservation, OffsetDateTime cancelledAt) {
+        paymentRepository.findByReservationId(reservation.getId()).ifPresent(payment -> {
+            BigDecimal rate = refundPolicy.refundRate(cancelledAt, reservation.getStartAt());
+            payment.applyRefund(rate);
+        });
     }
 
     @Transactional(readOnly = true)

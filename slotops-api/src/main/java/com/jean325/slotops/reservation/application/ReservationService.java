@@ -16,6 +16,7 @@ import com.jean325.slotops.resource.domain.Resource;
 import com.jean325.slotops.resource.domain.ResourceRepository;
 import com.jean325.slotops.resource.domain.ResourceStatus;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.EnumSet;
@@ -39,6 +40,7 @@ public class ReservationService {
     private final AvailabilityService availabilityService;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final PaymentService paymentService;
+    private final Clock clock;
 
     // Allowed source states keyed by the target state of a transition.
     private static final Map<ReservationStatus, Set<ReservationStatus>> ALLOWED_TRANSITIONS = Map.of(
@@ -57,7 +59,8 @@ public class ReservationService {
             EntityManager entityManager,
             AvailabilityService availabilityService,
             OrganizationMemberRepository organizationMemberRepository,
-            PaymentService paymentService
+            PaymentService paymentService,
+            Clock clock
     ) {
         this.resourceRepository = resourceRepository;
         this.customerRepository = customerRepository;
@@ -68,6 +71,7 @@ public class ReservationService {
         this.availabilityService = availabilityService;
         this.organizationMemberRepository = organizationMemberRepository;
         this.paymentService = paymentService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -176,7 +180,13 @@ public class ReservationService {
 
     @Transactional
     public AdminReservationResponse cancel(Long orgId, Long reservationId, Long userId) {
-        return transition(orgId, reservationId, userId, ReservationStatus.CANCELLED);
+        requireOrgMembership(orgId, userId);
+        Reservation reservation = getForOrg(reservationId, orgId);
+        checkTransition(reservation, ReservationStatus.CANCELLED);
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        reservation.cancel(now);
+        paymentService.applyCancellationRefund(reservation, now);
+        return toAdminResponse(reservation);
     }
 
     @Transactional
@@ -201,6 +211,12 @@ public class ReservationService {
     private AdminReservationResponse transition(Long orgId, Long reservationId, Long userId, ReservationStatus target) {
         requireOrgMembership(orgId, userId);
         Reservation reservation = getForOrg(reservationId, orgId);
+        checkTransition(reservation, target);
+        reservation.changeStatus(target);
+        return toAdminResponse(reservation);
+    }
+
+    private void checkTransition(Reservation reservation, ReservationStatus target) {
         if (!ALLOWED_TRANSITIONS.get(target).contains(reservation.getStatus())) {
             throw new ApiException(
                     "INVALID_RESERVATION_STATE_TRANSITION",
@@ -208,8 +224,6 @@ public class ReservationService {
                     HttpStatus.CONFLICT
             );
         }
-        reservation.changeStatus(target);
-        return toAdminResponse(reservation);
     }
 
     private void requireOrgMembership(Long orgId, Long userId) {

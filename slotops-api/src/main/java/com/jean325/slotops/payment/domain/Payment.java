@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -64,6 +65,18 @@ public class Payment extends BaseEntity {
             this.transactionRef = transactionRef;
         }
         this.paymentStatus = target;
+    }
+
+    /**
+     * Refunds the given fraction of the amount already paid. A zero refund
+     * (nothing paid, or a rate of 0) leaves the payment untouched.
+     */
+    public void applyRefund(BigDecimal rate) {
+        BigDecimal amount = paidAmount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        if (amount.signum() > 0) {
+            this.refundedAmount = amount;
+            this.paymentStatus = PaymentStatus.REFUNDED;
+        }
     }
 
     public Long getId() {

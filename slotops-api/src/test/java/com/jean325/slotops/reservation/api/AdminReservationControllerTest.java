@@ -1,15 +1,19 @@
 package com.jean325.slotops.reservation.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jean325.slotops.support.FixedClockConfig;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -21,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("test")
 @WithMockUser
 @Sql("/sql/clean.sql")
+@Import(FixedClockConfig.class)
 class AdminReservationControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -80,6 +85,18 @@ class AdminReservationControllerTest {
                 """.formatted(id, code, status));
     }
 
+    private void seedPaidPayment(long reservationId) {
+        jdbcTemplate.execute("""
+                insert into payments (id, reservation_id, payment_status, paid_amount, refunded_amount, created_at, updated_at)
+                values (%d, %d, 'PAID', 20000.00, 0, current_timestamp, current_timestamp)
+                """.formatted(reservationId, reservationId));
+    }
+
+    private Map<String, Object> paymentRow(long reservationId) {
+        return jdbcTemplate.queryForMap(
+                "select payment_status, refunded_amount from payments where reservation_id = " + reservationId);
+    }
+
     @Test
     void confirmsPendingReservation() throws Exception {
         seedReservation(1, "RSV-1", "PENDING");
@@ -97,6 +114,50 @@ class AdminReservationControllerTest {
                         .requestAttr("userId", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+    }
+
+    @Test
+    void cancellingFarAheadPaidReservationRefundsFully() throws Exception {
+        // Clock is frozen at 2026-05-01; reservation starts 2026-06-15 (far > 24h ahead).
+        seedReservation(1, "RSV-1", "CONFIRMED");
+        seedPaidPayment(1);
+
+        mockMvc.perform(post("/api/v1/organizations/1/reservations/1/cancel")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+
+        Map<String, Object> payment = paymentRow(1);
+        assertThat(payment.get("payment_status")).isEqualTo("REFUNDED");
+        assertThat(((Number) payment.get("refunded_amount")).doubleValue()).isEqualTo(20000.0);
+    }
+
+    @Test
+    void cancellingWithinTwoHoursRefundsNothing() throws Exception {
+        // Reservation starts 2026-05-01 09:30 (+09:00), 30 min after the frozen 09:00 now.
+        jdbcTemplate.execute("""
+                insert into reservations (
+                    id, organization_id, location_id, resource_id, customer_id, reservation_code, status,
+                    start_at, end_at, guest_count, base_amount, addon_amount, discount_amount, total_amount,
+                    created_at, updated_at
+                ) values (
+                    2, 1, 1, 1, 1, 'RSV-2', 'CONFIRMED',
+                    TIMESTAMP WITH TIME ZONE '2026-05-01 09:30:00+09:00',
+                    TIMESTAMP WITH TIME ZONE '2026-05-01 10:30:00+09:00',
+                    2, 20000.00, 0, 0, 20000.00,
+                    current_timestamp, current_timestamp
+                )
+                """);
+        seedPaidPayment(2);
+
+        mockMvc.perform(post("/api/v1/organizations/1/reservations/2/cancel")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+
+        Map<String, Object> payment = paymentRow(2);
+        assertThat(payment.get("payment_status")).isEqualTo("PAID");
+        assertThat(((Number) payment.get("refunded_amount")).doubleValue()).isEqualTo(0.0);
     }
 
     @Test

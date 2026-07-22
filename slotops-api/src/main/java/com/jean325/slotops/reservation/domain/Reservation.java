@@ -57,6 +57,8 @@ public class Reservation extends BaseEntity {
 
     private String specialRequest;
 
+    private OffsetDateTime cancelledAt;
+
     protected Reservation() {
     }
 
@@ -114,6 +116,15 @@ public class Reservation extends BaseEntity {
 
     public void changeStatus(ReservationStatus status) {
         this.status = status;
+    }
+
+    public void cancel(OffsetDateTime cancelledAt) {
+        this.status = ReservationStatus.CANCELLED;
+        this.cancelledAt = cancelledAt;
+    }
+
+    public OffsetDateTime getCancelledAt() {
+        return cancelledAt;
     }
 
     public Resource getResource() {
