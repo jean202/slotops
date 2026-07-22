@@ -13,12 +13,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(FixedClockConfig.class)
+@Sql("/sql/clean.sql")
 class PublicAvailabilityControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -26,16 +28,6 @@ class PublicAvailabilityControllerTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("delete from availability_rules");
-        jdbcTemplate.execute("delete from blackout_periods");
-        jdbcTemplate.execute("delete from payments");
-        jdbcTemplate.execute("delete from reservations");
-        jdbcTemplate.execute("delete from customers");
-        jdbcTemplate.execute("delete from resources");
-        jdbcTemplate.execute("delete from locations");
-        jdbcTemplate.execute("delete from organization_members");
-        jdbcTemplate.execute("delete from organizations");
-
         jdbcTemplate.execute("""
                 insert into organizations (id, name, slug, status, created_at, updated_at)
                 values (1, 'Demo Org', 'demo-org', 'ACTIVE', current_timestamp, current_timestamp)
