@@ -200,12 +200,25 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminReservationResponse> listForOrg(Long orgId, Long userId, ReservationStatus status) {
+    public List<AdminReservationResponse> listForOrg(
+            Long orgId,
+            Long userId,
+            ReservationStatus status,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            Long customerId
+    ) {
         requireOrgMembership(orgId, userId);
-        List<Reservation> reservations = (status == null)
-                ? reservationRepository.findByOrganizationIdOrderByStartAtDesc(orgId)
-                : reservationRepository.findByOrganizationIdAndStatusOrderByStartAtDesc(orgId, status);
-        return reservations.stream().map(this::toAdminResponse).toList();
+        if (from != null && to != null && !from.isBefore(to)) {
+            throw new ApiException(
+                    "INVALID_DATE_RANGE",
+                    "The 'from' timestamp must be earlier than 'to'.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+        return reservationRepository.search(orgId, status, from, to, customerId).stream()
+                .map(this::toAdminResponse)
+                .toList();
     }
 
     private AdminReservationResponse transition(Long orgId, Long reservationId, Long userId, ReservationStatus target) {

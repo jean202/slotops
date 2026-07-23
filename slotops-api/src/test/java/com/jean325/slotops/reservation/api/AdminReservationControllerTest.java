@@ -186,6 +186,72 @@ class AdminReservationControllerTest {
     }
 
     @Test
+    void filtersListByDateRange() throws Exception {
+        seedReservation(1, "RSV-1", "PENDING"); // starts 2026-06-15 10:00+09:00
+        jdbcTemplate.execute("""
+                insert into reservations (
+                    id, organization_id, location_id, resource_id, customer_id, reservation_code, status,
+                    start_at, end_at, guest_count, base_amount, addon_amount, discount_amount, total_amount,
+                    created_at, updated_at
+                ) values (
+                    2, 1, 1, 1, 1, 'RSV-2', 'PENDING',
+                    TIMESTAMP WITH TIME ZONE '2026-07-20 10:00:00+09:00',
+                    TIMESTAMP WITH TIME ZONE '2026-07-20 12:00:00+09:00',
+                    2, 20000.00, 0, 0, 20000.00,
+                    current_timestamp, current_timestamp
+                )
+                """);
+
+        // 'to' is exclusive, so a June-only window keeps RSV-1 and drops RSV-2.
+        mockMvc.perform(get("/api/v1/organizations/1/reservations")
+                        .param("from", "2026-06-01T00:00:00+09:00")
+                        .param("to", "2026-07-01T00:00:00+09:00")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].reservationCode").value("RSV-1"));
+    }
+
+    @Test
+    void filtersListByCustomer() throws Exception {
+        jdbcTemplate.execute("""
+                insert into customers (id, organization_id, name, email, phone, created_at, updated_at)
+                values (2, 1, 'Other Guest', 'other@example.com', '010-9999-9999', current_timestamp, current_timestamp)
+                """);
+        seedReservation(1, "RSV-1", "PENDING"); // customer 1
+        jdbcTemplate.execute("""
+                insert into reservations (
+                    id, organization_id, location_id, resource_id, customer_id, reservation_code, status,
+                    start_at, end_at, guest_count, base_amount, addon_amount, discount_amount, total_amount,
+                    created_at, updated_at
+                ) values (
+                    2, 1, 1, 1, 2, 'RSV-2', 'PENDING',
+                    TIMESTAMP WITH TIME ZONE '2026-06-16 10:00:00+09:00',
+                    TIMESTAMP WITH TIME ZONE '2026-06-16 12:00:00+09:00',
+                    2, 20000.00, 0, 0, 20000.00,
+                    current_timestamp, current_timestamp
+                )
+                """);
+
+        mockMvc.perform(get("/api/v1/organizations/1/reservations")
+                        .param("customerId", "2")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].reservationCode").value("RSV-2"));
+    }
+
+    @Test
+    void rejectsInvertedDateRange() throws Exception {
+        mockMvc.perform(get("/api/v1/organizations/1/reservations")
+                        .param("from", "2026-07-01T00:00:00+09:00")
+                        .param("to", "2026-06-01T00:00:00+09:00")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_DATE_RANGE"));
+    }
+
+    @Test
     void listsReservationsWithOptionalStatusFilter() throws Exception {
         seedReservation(1, "RSV-1", "PENDING");
         seedReservation(2, "RSV-2", "CONFIRMED");

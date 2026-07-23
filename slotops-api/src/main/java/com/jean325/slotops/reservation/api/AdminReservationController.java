@@ -6,7 +6,9 @@ import com.jean325.slotops.reservation.application.ReservationService;
 import com.jean325.slotops.reservation.domain.ReservationStatus;
 import com.jean325.slotops.reservation.dto.AdminReservationResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,10 +32,14 @@ public class AdminReservationController {
     public ResponseEntity<ApiResponse<List<AdminReservationResponse>>> list(
             @PathVariable Long orgId,
             @RequestParam(required = false) ReservationStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
+            @RequestParam(required = false) Long customerId,
             HttpServletRequest httpRequest
     ) {
         Long userId = getCurrentUserId(httpRequest);
-        return ResponseEntity.ok(ApiResponse.ok(reservationService.listForOrg(orgId, userId, status)));
+        return ResponseEntity.ok(ApiResponse.ok(
+                reservationService.listForOrg(orgId, userId, status, from, to, customerId)));
     }
 
     @PostMapping("/{reservationId}/confirm")

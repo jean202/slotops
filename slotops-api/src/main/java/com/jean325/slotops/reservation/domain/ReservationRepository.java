@@ -38,8 +38,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("activeStatuses") Collection<ReservationStatus> activeStatuses
     );
 
-    List<Reservation> findByOrganizationIdOrderByStartAtDesc(Long organizationId);
-
-    List<Reservation> findByOrganizationIdAndStatusOrderByStartAtDesc(
-            Long organizationId, ReservationStatus status);
+    /**
+     * Org-scoped reservation search. Every filter is optional: a null argument
+     * leaves that condition out. {@code from} is inclusive, {@code to} exclusive.
+     */
+    @Query("""
+            select r from Reservation r
+            where r.organizationId = :orgId
+              and (:status is null or r.status = :status)
+              and (:from is null or r.startAt >= :from)
+              and (:to is null or r.startAt < :to)
+              and (:customerId is null or r.customer.id = :customerId)
+            order by r.startAt desc
+            """)
+    List<Reservation> search(
+            @Param("orgId") Long orgId,
+            @Param("status") ReservationStatus status,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to,
+            @Param("customerId") Long customerId
+    );
 }
