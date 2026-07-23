@@ -186,6 +186,47 @@ class AdminReservationControllerTest {
     }
 
     @Test
+    void paginatesListAndReportsTotals() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            jdbcTemplate.execute("""
+                    insert into reservations (
+                        id, organization_id, location_id, resource_id, customer_id, reservation_code, status,
+                        start_at, end_at, guest_count, base_amount, addon_amount, discount_amount, total_amount,
+                        created_at, updated_at
+                    ) values (
+                        %d, 1, 1, 1, 1, 'RSV-%d', 'PENDING',
+                        TIMESTAMP WITH TIME ZONE '2026-06-1%d 10:00:00+09:00',
+                        TIMESTAMP WITH TIME ZONE '2026-06-1%d 12:00:00+09:00',
+                        2, 20000.00, 0, 0, 20000.00,
+                        current_timestamp, current_timestamp
+                    )
+                    """.formatted(i, i, i, i));
+        }
+
+        // Default sort is startAt desc, so page 0 of size 2 holds the two latest.
+        mockMvc.perform(get("/api/v1/organizations/1/reservations")
+                        .param("page", "0").param("size", "2")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].reservationCode").value("RSV-3"))
+                .andExpect(jsonPath("$.data.content[1].reservationCode").value("RSV-2"))
+                .andExpect(jsonPath("$.data.totalElements").value(3))
+                .andExpect(jsonPath("$.data.totalPages").value(2))
+                .andExpect(jsonPath("$.data.first").value(true))
+                .andExpect(jsonPath("$.data.last").value(false));
+
+        mockMvc.perform(get("/api/v1/organizations/1/reservations")
+                        .param("page", "1").param("size", "2")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].reservationCode").value("RSV-1"))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.last").value(true));
+    }
+
+    @Test
     void filtersListByDateRange() throws Exception {
         seedReservation(1, "RSV-1", "PENDING"); // starts 2026-06-15 10:00+09:00
         jdbcTemplate.execute("""
@@ -208,8 +249,8 @@ class AdminReservationControllerTest {
                         .param("to", "2026-07-01T00:00:00+09:00")
                         .requestAttr("userId", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].reservationCode").value("RSV-1"));
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].reservationCode").value("RSV-1"));
     }
 
     @Test
@@ -237,8 +278,8 @@ class AdminReservationControllerTest {
                         .param("customerId", "2")
                         .requestAttr("userId", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].reservationCode").value("RSV-2"));
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].reservationCode").value("RSV-2"));
     }
 
     @Test
@@ -259,13 +300,13 @@ class AdminReservationControllerTest {
         mockMvc.perform(get("/api/v1/organizations/1/reservations")
                         .requestAttr("userId", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2));
+                .andExpect(jsonPath("$.data.content.length()").value(2));
 
         mockMvc.perform(get("/api/v1/organizations/1/reservations")
                         .param("status", "PENDING")
                         .requestAttr("userId", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].status").value("PENDING"));
     }
 }

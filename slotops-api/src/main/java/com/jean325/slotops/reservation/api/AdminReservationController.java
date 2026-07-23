@@ -1,13 +1,16 @@
 package com.jean325.slotops.reservation.api;
 
 import com.jean325.slotops.global.config.ApiResponse;
+import com.jean325.slotops.global.config.PageResponse;
 import com.jean325.slotops.global.error.ApiException;
 import com.jean325.slotops.reservation.application.ReservationService;
 import com.jean325.slotops.reservation.domain.ReservationStatus;
 import com.jean325.slotops.reservation.dto.AdminReservationResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.OffsetDateTime;
-import java.util.List;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,17 +32,18 @@ public class AdminReservationController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<AdminReservationResponse>>> list(
+    public ResponseEntity<ApiResponse<PageResponse<AdminReservationResponse>>> list(
             @PathVariable Long orgId,
             @RequestParam(required = false) ReservationStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
             @RequestParam(required = false) Long customerId,
+            @PageableDefault(size = 20, sort = "startAt", direction = Sort.Direction.DESC) Pageable pageable,
             HttpServletRequest httpRequest
     ) {
         Long userId = getCurrentUserId(httpRequest);
         return ResponseEntity.ok(ApiResponse.ok(
-                reservationService.listForOrg(orgId, userId, status, from, to, customerId)));
+                reservationService.listForOrg(orgId, userId, status, from, to, customerId, pageable)));
     }
 
     @PostMapping("/{reservationId}/confirm")

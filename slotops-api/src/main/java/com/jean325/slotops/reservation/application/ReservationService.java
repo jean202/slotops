@@ -3,6 +3,7 @@ package com.jean325.slotops.reservation.application;
 import com.jean325.slotops.availability.application.AvailabilityService;
 import com.jean325.slotops.customer.domain.Customer;
 import com.jean325.slotops.customer.domain.CustomerRepository;
+import com.jean325.slotops.global.config.PageResponse;
 import com.jean325.slotops.global.error.ApiException;
 import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
 import com.jean325.slotops.payment.application.PaymentService;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import jakarta.persistence.EntityManager;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -200,13 +202,14 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminReservationResponse> listForOrg(
+    public PageResponse<AdminReservationResponse> listForOrg(
             Long orgId,
             Long userId,
             ReservationStatus status,
             OffsetDateTime from,
             OffsetDateTime to,
-            Long customerId
+            Long customerId,
+            Pageable pageable
     ) {
         requireOrgMembership(orgId, userId);
         if (from != null && to != null && !from.isBefore(to)) {
@@ -216,9 +219,10 @@ public class ReservationService {
                     HttpStatus.BAD_REQUEST
             );
         }
-        return reservationRepository.search(orgId, status, from, to, customerId).stream()
-                .map(this::toAdminResponse)
-                .toList();
+        return PageResponse.from(
+                reservationRepository.search(orgId, status, from, to, customerId, pageable)
+                        .map(this::toAdminResponse)
+        );
     }
 
     private AdminReservationResponse transition(Long orgId, Long reservationId, Long userId, ReservationStatus target) {

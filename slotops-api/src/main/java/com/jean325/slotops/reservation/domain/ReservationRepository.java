@@ -3,6 +3,8 @@ package com.jean325.slotops.reservation.domain;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -41,21 +43,30 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     /**
      * Org-scoped reservation search. Every filter is optional: a null argument
      * leaves that condition out. {@code from} is inclusive, {@code to} exclusive.
+     * Ordering comes from the {@link Pageable}, not the query.
      */
-    @Query("""
+    @Query(value = """
             select r from Reservation r
             where r.organizationId = :orgId
               and (:status is null or r.status = :status)
               and (:from is null or r.startAt >= :from)
               and (:to is null or r.startAt < :to)
               and (:customerId is null or r.customer.id = :customerId)
-            order by r.startAt desc
+            """,
+            countQuery = """
+            select count(r) from Reservation r
+            where r.organizationId = :orgId
+              and (:status is null or r.status = :status)
+              and (:from is null or r.startAt >= :from)
+              and (:to is null or r.startAt < :to)
+              and (:customerId is null or r.customer.id = :customerId)
             """)
-    List<Reservation> search(
+    Page<Reservation> search(
             @Param("orgId") Long orgId,
             @Param("status") ReservationStatus status,
             @Param("from") OffsetDateTime from,
             @Param("to") OffsetDateTime to,
-            @Param("customerId") Long customerId
+            @Param("customerId") Long customerId,
+            Pageable pageable
     );
 }
