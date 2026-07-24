@@ -2,6 +2,7 @@
 -- Applied via @Sql before each controller test method. When a new entity/table
 -- with foreign keys is added, update ONLY this file.
 delete from notification_logs;
+delete from staff_notes;
 delete from reservation_addons;
 delete from payments;
 delete from reservations;
