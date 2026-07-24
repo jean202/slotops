@@ -1,5 +1,6 @@
 package com.jean325.slotops.reservation.domain;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -68,5 +69,34 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("to") OffsetDateTime to,
             @Param("customerId") Long customerId,
             Pageable pageable
+    );
+
+    @Query("""
+            select r.status as status, count(r) as count
+            from Reservation r
+            where r.organizationId = :orgId
+              and (:from is null or r.startAt >= :from)
+              and (:to is null or r.startAt < :to)
+            group by r.status
+            """)
+    List<StatusCount> countByStatus(
+            @Param("orgId") Long orgId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
+
+    @Query("""
+            select coalesce(sum(r.totalAmount), 0)
+            from Reservation r
+            where r.organizationId = :orgId
+              and r.status in :statuses
+              and (:from is null or r.startAt >= :from)
+              and (:to is null or r.startAt < :to)
+            """)
+    BigDecimal sumRevenue(
+            @Param("orgId") Long orgId,
+            @Param("statuses") Collection<ReservationStatus> statuses,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
     );
 }
