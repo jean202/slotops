@@ -5,6 +5,7 @@ import com.jean325.slotops.addon.dto.AddonResponse;
 import com.jean325.slotops.addon.dto.CreateAddonRequest;
 import com.jean325.slotops.global.config.ApiResponse;
 import com.jean325.slotops.global.error.ApiException;
+import com.jean325.slotops.global.security.RequireOrgAccess;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{orgId}/addons")
+@RequireOrgAccess
 public class AdminAddonController {
 
     private final AddonService addonService;

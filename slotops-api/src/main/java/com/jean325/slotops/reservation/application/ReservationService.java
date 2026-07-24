@@ -10,7 +10,7 @@ import com.jean325.slotops.global.config.PageResponse;
 import com.jean325.slotops.global.error.ApiException;
 import com.jean325.slotops.notification.application.NotificationService;
 import com.jean325.slotops.notification.domain.NotificationTemplate;
-import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
+import com.jean325.slotops.global.security.OrgAccessGuard;
 import com.jean325.slotops.payment.application.PaymentService;
 import com.jean325.slotops.reservation.domain.Reservation;
 import com.jean325.slotops.reservation.domain.ReservationAddon;
@@ -49,7 +49,7 @@ public class ReservationService {
     private final ReservationCodeGenerator reservationCodeGenerator;
     private final EntityManager entityManager;
     private final AvailabilityService availabilityService;
-    private final OrganizationMemberRepository organizationMemberRepository;
+    private final OrgAccessGuard orgAccessGuard;
     private final PaymentService paymentService;
     private final AddonRepository addonRepository;
     private final ReservationAddonRepository reservationAddonRepository;
@@ -72,7 +72,7 @@ public class ReservationService {
             ReservationCodeGenerator reservationCodeGenerator,
             EntityManager entityManager,
             AvailabilityService availabilityService,
-            OrganizationMemberRepository organizationMemberRepository,
+            OrgAccessGuard orgAccessGuard,
             PaymentService paymentService,
             AddonRepository addonRepository,
             ReservationAddonRepository reservationAddonRepository,
@@ -86,7 +86,7 @@ public class ReservationService {
         this.reservationCodeGenerator = reservationCodeGenerator;
         this.entityManager = entityManager;
         this.availabilityService = availabilityService;
-        this.organizationMemberRepository = organizationMemberRepository;
+        this.orgAccessGuard = orgAccessGuard;
         this.paymentService = paymentService;
         this.addonRepository = addonRepository;
         this.reservationAddonRepository = reservationAddonRepository;
@@ -338,10 +338,7 @@ public class ReservationService {
     }
 
     private void requireOrgMembership(Long orgId, Long userId) {
-        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)) {
-            throw new ApiException("FORBIDDEN",
-                    "User is not a member of this organization", HttpStatus.FORBIDDEN);
-        }
+        orgAccessGuard.requireMembership(orgId, userId);
     }
 
     private Reservation getForOrg(Long reservationId, Long orgId) {

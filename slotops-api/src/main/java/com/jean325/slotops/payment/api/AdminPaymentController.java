@@ -2,6 +2,7 @@ package com.jean325.slotops.payment.api;
 
 import com.jean325.slotops.global.config.ApiResponse;
 import com.jean325.slotops.global.error.ApiException;
+import com.jean325.slotops.global.security.RequireOrgAccess;
 import com.jean325.slotops.payment.application.PaymentService;
 import com.jean325.slotops.payment.dto.PaymentResponse;
 import com.jean325.slotops.payment.dto.UpdatePaymentRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{orgId}/reservations/{reservationId}/payment")
+@RequireOrgAccess
 public class AdminPaymentController {
 
     private final PaymentService paymentService;

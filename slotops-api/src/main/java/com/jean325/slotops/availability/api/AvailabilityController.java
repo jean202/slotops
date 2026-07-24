@@ -7,6 +7,7 @@ import com.jean325.slotops.availability.dto.CreateAvailabilityRuleRequest;
 import com.jean325.slotops.availability.dto.CreateBlackoutPeriodRequest;
 import com.jean325.slotops.global.config.ApiResponse;
 import com.jean325.slotops.global.error.ApiException;
+import com.jean325.slotops.global.security.RequireOrgAccess;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{orgId}/resources/{resourceId}")
+@RequireOrgAccess
 public class AvailabilityController {
 
     private final AvailabilityService availabilityService;

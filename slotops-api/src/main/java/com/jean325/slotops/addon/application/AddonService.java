@@ -4,10 +4,8 @@ import com.jean325.slotops.addon.domain.Addon;
 import com.jean325.slotops.addon.domain.AddonRepository;
 import com.jean325.slotops.addon.dto.AddonResponse;
 import com.jean325.slotops.addon.dto.CreateAddonRequest;
-import com.jean325.slotops.global.error.ApiException;
-import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
+import com.jean325.slotops.global.security.OrgAccessGuard;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,14 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class AddonService {
 
     private final AddonRepository addonRepository;
-    private final OrganizationMemberRepository organizationMemberRepository;
+    private final OrgAccessGuard orgAccessGuard;
 
     public AddonService(
             AddonRepository addonRepository,
-            OrganizationMemberRepository organizationMemberRepository
+            OrgAccessGuard orgAccessGuard
     ) {
         this.addonRepository = addonRepository;
-        this.organizationMemberRepository = organizationMemberRepository;
+        this.orgAccessGuard = orgAccessGuard;
     }
 
     @Transactional
@@ -41,10 +39,7 @@ public class AddonService {
     }
 
     private void requireOrgMembership(Long orgId, Long userId) {
-        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)) {
-            throw new ApiException("FORBIDDEN",
-                    "User is not a member of this organization", HttpStatus.FORBIDDEN);
-        }
+        orgAccessGuard.requireMembership(orgId, userId);
     }
 
     private AddonResponse toResponse(Addon addon) {

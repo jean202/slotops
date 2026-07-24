@@ -1,7 +1,7 @@
 package com.jean325.slotops.payment.application;
 
 import com.jean325.slotops.global.error.ApiException;
-import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
+import com.jean325.slotops.global.security.OrgAccessGuard;
 import com.jean325.slotops.payment.domain.Payment;
 import com.jean325.slotops.payment.domain.PaymentRepository;
 import com.jean325.slotops.payment.domain.RefundPolicy;
@@ -21,20 +21,20 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final ReservationRepository reservationRepository;
-    private final OrganizationMemberRepository organizationMemberRepository;
+    private final OrgAccessGuard orgAccessGuard;
     private final RefundPolicy refundPolicy;
     private final Clock clock;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             ReservationRepository reservationRepository,
-            OrganizationMemberRepository organizationMemberRepository,
+            OrgAccessGuard orgAccessGuard,
             RefundPolicy refundPolicy,
             Clock clock
     ) {
         this.paymentRepository = paymentRepository;
         this.reservationRepository = reservationRepository;
-        this.organizationMemberRepository = organizationMemberRepository;
+        this.orgAccessGuard = orgAccessGuard;
         this.refundPolicy = refundPolicy;
         this.clock = clock;
     }
@@ -93,10 +93,7 @@ public class PaymentService {
     }
 
     private void requireOrgMembership(Long orgId, Long userId) {
-        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)) {
-            throw new ApiException("FORBIDDEN",
-                    "User is not a member of this organization", HttpStatus.FORBIDDEN);
-        }
+        orgAccessGuard.requireMembership(orgId, userId);
     }
 
     private PaymentResponse toResponse(Payment payment) {

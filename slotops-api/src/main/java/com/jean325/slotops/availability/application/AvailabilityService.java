@@ -11,7 +11,7 @@ import com.jean325.slotops.availability.dto.BlackoutPeriodResponse;
 import com.jean325.slotops.availability.dto.CreateAvailabilityRuleRequest;
 import com.jean325.slotops.availability.dto.CreateBlackoutPeriodRequest;
 import com.jean325.slotops.global.error.ApiException;
-import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
+import com.jean325.slotops.global.security.OrgAccessGuard;
 import com.jean325.slotops.reservation.domain.Reservation;
 import com.jean325.slotops.reservation.domain.ReservationRepository;
 import com.jean325.slotops.reservation.domain.ReservationStatus;
@@ -37,7 +37,7 @@ public class AvailabilityService {
     private final BlackoutPeriodRepository blackoutRepository;
     private final ResourceRepository resourceRepository;
     private final ReservationRepository reservationRepository;
-    private final OrganizationMemberRepository organizationMemberRepository;
+    private final OrgAccessGuard orgAccessGuard;
     private final SlotCalculator slotCalculator;
     private final Clock clock;
 
@@ -46,7 +46,7 @@ public class AvailabilityService {
             BlackoutPeriodRepository blackoutRepository,
             ResourceRepository resourceRepository,
             ReservationRepository reservationRepository,
-            OrganizationMemberRepository organizationMemberRepository,
+            OrgAccessGuard orgAccessGuard,
             SlotCalculator slotCalculator,
             Clock clock
     ) {
@@ -54,16 +54,13 @@ public class AvailabilityService {
         this.blackoutRepository = blackoutRepository;
         this.resourceRepository = resourceRepository;
         this.reservationRepository = reservationRepository;
-        this.organizationMemberRepository = organizationMemberRepository;
+        this.orgAccessGuard = orgAccessGuard;
         this.slotCalculator = slotCalculator;
         this.clock = clock;
     }
 
     private void requireOrgMembership(Long orgId, Long userId) {
-        if (!organizationMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)) {
-            throw new ApiException("FORBIDDEN",
-                    "User is not a member of this organization", HttpStatus.FORBIDDEN);
-        }
+        orgAccessGuard.requireMembership(orgId, userId);
     }
 
     // --- Availability Rules ---

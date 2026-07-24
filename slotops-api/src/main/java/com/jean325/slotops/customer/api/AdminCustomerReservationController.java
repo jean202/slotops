@@ -3,6 +3,7 @@ package com.jean325.slotops.customer.api;
 import com.jean325.slotops.global.config.ApiResponse;
 import com.jean325.slotops.global.config.PageResponse;
 import com.jean325.slotops.global.error.ApiException;
+import com.jean325.slotops.global.security.RequireOrgAccess;
 import com.jean325.slotops.reservation.application.ReservationService;
 import com.jean325.slotops.reservation.dto.AdminReservationResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{orgId}/customers/{customerId}/reservations")
+@RequireOrgAccess
 public class AdminCustomerReservationController {
 
     private final ReservationService reservationService;
