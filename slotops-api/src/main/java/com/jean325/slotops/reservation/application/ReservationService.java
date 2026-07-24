@@ -1,5 +1,8 @@
 package com.jean325.slotops.reservation.application;
 
+import com.jean325.slotops.addon.domain.Addon;
+import com.jean325.slotops.addon.domain.AddonRepository;
+import com.jean325.slotops.addon.domain.AddonStatus;
 import com.jean325.slotops.availability.application.AvailabilityService;
 import com.jean325.slotops.customer.domain.Customer;
 import com.jean325.slotops.customer.domain.CustomerRepository;
@@ -8,6 +11,8 @@ import com.jean325.slotops.global.error.ApiException;
 import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
 import com.jean325.slotops.payment.application.PaymentService;
 import com.jean325.slotops.reservation.domain.Reservation;
+import com.jean325.slotops.reservation.domain.ReservationAddon;
+import com.jean325.slotops.reservation.domain.ReservationAddonRepository;
 import com.jean325.slotops.reservation.domain.ReservationRepository;
 import com.jean325.slotops.reservation.domain.ReservationStatus;
 import com.jean325.slotops.reservation.dto.AdminReservationResponse;
@@ -20,10 +25,12 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -42,6 +49,8 @@ public class ReservationService {
     private final AvailabilityService availabilityService;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final PaymentService paymentService;
+    private final AddonRepository addonRepository;
+    private final ReservationAddonRepository reservationAddonRepository;
     private final Clock clock;
 
     // Allowed source states keyed by the target state of a transition.
@@ -62,6 +71,8 @@ public class ReservationService {
             AvailabilityService availabilityService,
             OrganizationMemberRepository organizationMemberRepository,
             PaymentService paymentService,
+            AddonRepository addonRepository,
+            ReservationAddonRepository reservationAddonRepository,
             Clock clock
     ) {
         this.resourceRepository = resourceRepository;
@@ -73,6 +84,8 @@ public class ReservationService {
         this.availabilityService = availabilityService;
         this.organizationMemberRepository = organizationMemberRepository;
         this.paymentService = paymentService;
+        this.addonRepository = addonRepository;
+        this.reservationAddonRepository = reservationAddonRepository;
         this.clock = clock;
     }
 
@@ -114,6 +127,14 @@ public class ReservationService {
         Customer customer = findOrCreateCustomer(resource, request);
         BigDecimal baseAmount = calculateBaseAmount(resource, request.durationMinutes());
 
+        List<PublicCreateReservationRequest.AddonLine> addonLines =
+                request.addons() == null ? List.of() : request.addons();
+        Map<Long, Addon> addonsById = resolveAddons(resource.getOrganizationId(), addonLines);
+        BigDecimal addonAmount = addonLines.stream()
+                .map(line -> addonsById.get(line.addonId()).getPrice().multiply(BigDecimal.valueOf(line.quantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalAmount = baseAmount.add(addonAmount);
+
         Reservation reservation = new Reservation(
                 resource.getOrganizationId(),
                 resource.getLocationId(),
@@ -125,13 +146,14 @@ public class ReservationService {
                 endAt,
                 request.guestCount(),
                 baseAmount,
+                addonAmount,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                baseAmount,
+                totalAmount,
                 request.specialRequest()
         );
 
         Reservation saved = reservationRepository.save(reservation);
+        persistReservationAddons(saved.getId(), addonLines, addonsById);
         paymentService.createForReservation(saved);
         return new PublicReservationResponse(
                 saved.getId(),
@@ -171,6 +193,45 @@ public class ReservationService {
         BigDecimal slots = BigDecimal.valueOf(durationMinutes)
                 .divide(BigDecimal.valueOf(resource.getSlotUnitMinutes()));
         return resource.getBasePrice().multiply(slots);
+    }
+
+    /** Loads the requested addons and verifies each is an active addon of the org. */
+    private Map<Long, Addon> resolveAddons(Long orgId, List<PublicCreateReservationRequest.AddonLine> addonLines) {
+        if (addonLines.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = addonLines.stream()
+                .map(PublicCreateReservationRequest.AddonLine::addonId)
+                .distinct()
+                .toList();
+        Map<Long, Addon> addonsById = addonRepository
+                .findByIdInAndOrganizationIdAndStatus(ids, orgId, AddonStatus.ACTIVE)
+                .stream()
+                .collect(Collectors.toMap(Addon::getId, addon -> addon));
+        if (addonsById.size() != ids.size()) {
+            throw new ApiException(
+                    "ADDON_UNAVAILABLE",
+                    "One or more selected add-ons are unavailable.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+        return addonsById;
+    }
+
+    private void persistReservationAddons(
+            Long reservationId,
+            List<PublicCreateReservationRequest.AddonLine> addonLines,
+            Map<Long, Addon> addonsById
+    ) {
+        if (addonLines.isEmpty()) {
+            return;
+        }
+        List<ReservationAddon> rows = new ArrayList<>();
+        for (PublicCreateReservationRequest.AddonLine line : addonLines) {
+            Addon addon = addonsById.get(line.addonId());
+            rows.add(new ReservationAddon(reservationId, addon.getId(), line.quantity(), addon.getPrice()));
+        }
+        reservationAddonRepository.saveAll(rows);
     }
 
     // --- Admin reservation workflow ---

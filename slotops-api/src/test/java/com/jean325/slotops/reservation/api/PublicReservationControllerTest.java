@@ -89,6 +89,62 @@ class PublicReservationControllerTest {
     }
 
     @Test
+    void createsReservationWithAddonsInPricing() throws Exception {
+        jdbcTemplate.execute("""
+                insert into addons (id, organization_id, name, price, status, created_at, updated_at)
+                values (1, 1, 'Projector', 5000.00, 'ACTIVE', current_timestamp, current_timestamp)
+                """);
+        String requestBody = """
+                {
+                  "resourceId": 12,
+                  "date": "2026-06-15",
+                  "startTime": "10:00",
+                  "durationMinutes": 120,
+                  "guestCount": 3,
+                  "customer": {
+                    "name": "Kim Minji",
+                    "email": "minji@example.com",
+                    "phone": "010-1234-5678"
+                  },
+                  "addons": [ { "addonId": 1, "quantity": 2 } ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/public/reservations")
+                        .contentType("application/json")
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.pricing.baseAmount").value(36000.0))
+                .andExpect(jsonPath("$.pricing.addonAmount").value(10000.0))
+                .andExpect(jsonPath("$.pricing.totalAmount").value(46000.0));
+    }
+
+    @Test
+    void rejectsReservationWithUnavailableAddon() throws Exception {
+        String requestBody = """
+                {
+                  "resourceId": 12,
+                  "date": "2026-06-15",
+                  "startTime": "10:00",
+                  "durationMinutes": 120,
+                  "guestCount": 3,
+                  "customer": {
+                    "name": "Kim Minji",
+                    "email": "minji@example.com",
+                    "phone": "010-1234-5678"
+                  },
+                  "addons": [ { "addonId": 999, "quantity": 1 } ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/public/reservations")
+                        .contentType("application/json")
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ADDON_UNAVAILABLE"));
+    }
+
+    @Test
     void rejectsOverlappingReservation() throws Exception {
         jdbcTemplate.execute("""
                 insert into customers (id, organization_id, name, email, phone, created_at, updated_at)
