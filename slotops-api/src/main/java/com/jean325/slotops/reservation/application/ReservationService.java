@@ -8,6 +8,8 @@ import com.jean325.slotops.customer.domain.Customer;
 import com.jean325.slotops.customer.domain.CustomerRepository;
 import com.jean325.slotops.global.config.PageResponse;
 import com.jean325.slotops.global.error.ApiException;
+import com.jean325.slotops.notification.application.NotificationService;
+import com.jean325.slotops.notification.domain.NotificationTemplate;
 import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
 import com.jean325.slotops.payment.application.PaymentService;
 import com.jean325.slotops.reservation.domain.Reservation;
@@ -51,6 +53,7 @@ public class ReservationService {
     private final PaymentService paymentService;
     private final AddonRepository addonRepository;
     private final ReservationAddonRepository reservationAddonRepository;
+    private final NotificationService notificationService;
     private final Clock clock;
 
     // Allowed source states keyed by the target state of a transition.
@@ -73,6 +76,7 @@ public class ReservationService {
             PaymentService paymentService,
             AddonRepository addonRepository,
             ReservationAddonRepository reservationAddonRepository,
+            NotificationService notificationService,
             Clock clock
     ) {
         this.resourceRepository = resourceRepository;
@@ -86,6 +90,7 @@ public class ReservationService {
         this.paymentService = paymentService;
         this.addonRepository = addonRepository;
         this.reservationAddonRepository = reservationAddonRepository;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -155,6 +160,7 @@ public class ReservationService {
         Reservation saved = reservationRepository.save(reservation);
         persistReservationAddons(saved.getId(), addonLines, addonsById);
         paymentService.createForReservation(saved);
+        notificationService.logReservationEvent(saved, NotificationTemplate.RESERVATION_CREATED);
         return new PublicReservationResponse(
                 saved.getId(),
                 saved.getReservationCode(),
@@ -238,7 +244,12 @@ public class ReservationService {
 
     @Transactional
     public AdminReservationResponse confirm(Long orgId, Long reservationId, Long userId) {
-        return transition(orgId, reservationId, userId, ReservationStatus.CONFIRMED);
+        requireOrgMembership(orgId, userId);
+        Reservation reservation = getForOrg(reservationId, orgId);
+        checkTransition(reservation, ReservationStatus.CONFIRMED);
+        reservation.changeStatus(ReservationStatus.CONFIRMED);
+        notificationService.logReservationEvent(reservation, NotificationTemplate.RESERVATION_CONFIRMED);
+        return toAdminResponse(reservation);
     }
 
     @Transactional
@@ -249,6 +260,7 @@ public class ReservationService {
         OffsetDateTime now = OffsetDateTime.now(clock);
         reservation.cancel(now);
         paymentService.applyCancellationRefund(reservation, now);
+        notificationService.logReservationEvent(reservation, NotificationTemplate.RESERVATION_CANCELLED);
         return toAdminResponse(reservation);
     }
 

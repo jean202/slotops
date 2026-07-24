@@ -1,10 +1,12 @@
 package com.jean325.slotops.reservation.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jean325.slotops.support.FixedClockConfig;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +88,34 @@ class PublicReservationControllerTest {
                 .andExpect(jsonPath("$.customer.name").value("Kim Minji"))
                 .andExpect(jsonPath("$.pricing.totalAmount").value(36000.0))
                 .andExpect(jsonPath("$.paymentStatus").value("UNPAID"));
+    }
+
+    @Test
+    void logsPendingNotificationOnCreate() throws Exception {
+        String requestBody = """
+                {
+                  "resourceId": 12,
+                  "date": "2026-06-15",
+                  "startTime": "10:00",
+                  "durationMinutes": 120,
+                  "guestCount": 3,
+                  "customer": {
+                    "name": "Kim Minji",
+                    "email": "minji@example.com",
+                    "phone": "010-1234-5678"
+                  }
+                }
+                """;
+        mockMvc.perform(post("/api/v1/public/reservations")
+                        .contentType("application/json").content(requestBody))
+                .andExpect(status().isCreated());
+
+        Map<String, Object> log = jdbcTemplate.queryForMap(
+                "select template_code, delivery_status, channel, recipient from notification_logs");
+        assertThat(log.get("template_code")).isEqualTo("RESERVATION_CREATED");
+        assertThat(log.get("delivery_status")).isEqualTo("PENDING");
+        assertThat(log.get("channel")).isEqualTo("EMAIL");
+        assertThat(log.get("recipient")).isEqualTo("minji@example.com");
     }
 
     @Test

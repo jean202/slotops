@@ -97,6 +97,13 @@ class AdminReservationControllerTest {
                 "select payment_status, refunded_amount from payments where reservation_id = " + reservationId);
     }
 
+    private String latestNotificationTemplate(long reservationId) {
+        return jdbcTemplate.queryForObject(
+                "select template_code from notification_logs where reservation_id = " + reservationId
+                        + " order by created_at desc, id desc limit 1",
+                String.class);
+    }
+
     @Test
     void confirmsPendingReservation() throws Exception {
         seedReservation(1, "RSV-1", "PENDING");
@@ -114,6 +121,24 @@ class AdminReservationControllerTest {
                         .requestAttr("userId", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+    }
+
+    @Test
+    void logsNotificationOnConfirm() throws Exception {
+        seedReservation(1, "RSV-1", "PENDING");
+        mockMvc.perform(post("/api/v1/organizations/1/reservations/1/confirm")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk());
+        assertThat(latestNotificationTemplate(1)).isEqualTo("RESERVATION_CONFIRMED");
+    }
+
+    @Test
+    void logsNotificationOnCancel() throws Exception {
+        seedReservation(1, "RSV-1", "CONFIRMED");
+        mockMvc.perform(post("/api/v1/organizations/1/reservations/1/cancel")
+                        .requestAttr("userId", 1L))
+                .andExpect(status().isOk());
+        assertThat(latestNotificationTemplate(1)).isEqualTo("RESERVATION_CANCELLED");
     }
 
     @Test
