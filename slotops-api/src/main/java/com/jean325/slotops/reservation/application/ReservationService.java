@@ -225,6 +225,27 @@ public class ReservationService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<AdminReservationResponse> listForCustomer(
+            Long orgId,
+            Long customerId,
+            Long userId,
+            Pageable pageable
+    ) {
+        requireOrgMembership(orgId, userId);
+        if (!customerRepository.existsByIdAndOrganization_Id(customerId, orgId)) {
+            throw new ApiException(
+                    "CUSTOMER_NOT_FOUND",
+                    "The requested customer was not found.",
+                    HttpStatus.NOT_FOUND
+            );
+        }
+        return PageResponse.from(
+                reservationRepository.search(orgId, null, null, null, customerId, pageable)
+                        .map(this::toAdminResponse)
+        );
+    }
+
     private AdminReservationResponse transition(Long orgId, Long reservationId, Long userId, ReservationStatus target) {
         requireOrgMembership(orgId, userId);
         Reservation reservation = getForOrg(reservationId, orgId);
