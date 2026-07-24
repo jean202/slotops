@@ -1,3 +1,4 @@
+<!-- AGENTS.md 와 CLAUDE.md 는 동일하게 유지됩니다. 한쪽을 수정하면 다른 쪽도 같이 수정하세요. -->
 # SlotOps - Implementation Guide
 
 ## Project Overview

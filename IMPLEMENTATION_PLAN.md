@@ -17,29 +17,29 @@ Build a reservation operations SaaS for small offline businesses. Focus on time-
 
 ### Tasks
 1. **Global Configuration** `global/`
-   - [ ] `GlobalExceptionHandler` - centralized error handling, consistent API error responses
-   - [ ] `JwtAuthenticationFilter` - intercept and validate JWT tokens
-   - [ ] `JwtTokenProvider` - issue, validate, refresh JWT tokens
-   - [ ] `SecurityConfig` - Spring Security configuration with JWT
-   - [ ] `ApiResponse<T>` wrapper for all API responses
-   - [ ] Common constants and error codes
+   - [x] `GlobalExceptionHandler` - centralized error handling, consistent API error responses
+   - [x] `JwtAuthenticationFilter` - intercept and validate JWT tokens
+   - [x] `JwtTokenProvider` - issue, validate, refresh JWT tokens
+   - [x] `SecurityConfig` - Spring Security configuration with JWT
+   - [x] `ApiResponse<T>` wrapper for all API responses
+   - [x] Common constants and error codes
 
 2. **Auth Module** `auth/`
-   - [ ] `User` entity (email, password_hash, name, phone, status)
-   - [ ] `UserRepository` interface + JPA implementation
-   - [ ] `AuthService` - signup, login, token refresh logic
-   - [ ] `AuthController` - POST /auth/signup, /auth/login, /auth/refresh
-   - [ ] Request/Response DTOs (SignupRequest, LoginResponse, etc.)
-   - [ ] Password encoding with BCrypt
+   - [x] `User` entity (email, password_hash, name, phone, status)
+   - [x] `UserRepository` interface + JPA implementation
+   - [x] `AuthService` - signup, login, token refresh logic
+   - [x] `AuthController` - POST /auth/signup, /auth/login, /auth/refresh
+   - [x] Request/Response DTOs (SignupRequest, LoginResponse, etc.)
+   - [x] Password encoding with BCrypt
 
 3. **Organization Module Bootstrap** `organization/`
-   - [ ] `Organization` entity with status tracking
-   - [ ] `OrganizationMember` entity (user + role mapping)
-   - [ ] `OrganizationStatus` enum (ACTIVE, INACTIVE)
-   - [ ] `OrganizationMemberRole` enum (OWNER, MANAGER, STAFF)
-   - [ ] `OrganizationRepository`, `OrganizationMemberRepository` JPA
-   - [ ] `OrganizationService` - create organization, add members
-   - [ ] `OrganizationController` - POST /organizations, GET /organizations/{id}
+   - [x] `Organization` entity with status tracking
+   - [x] `OrganizationMember` entity (user + role mapping)
+   - [x] `OrganizationStatus` enum (ACTIVE, INACTIVE)
+   - [x] `OrganizationMemberRole` enum (OWNER, MANAGER, STAFF)
+   - [x] `OrganizationRepository`, `OrganizationMemberRepository` JPA
+   - [x] `OrganizationService` - create organization, add members
+   - [x] `OrganizationController` - POST /organizations, GET /organizations/{id}
 
 ### Testing
 - Unit tests for JWT token generation and validation
@@ -63,28 +63,28 @@ Build a reservation operations SaaS for small offline businesses. Focus on time-
 
 ### Tasks
 1. **Location Module** `location/`
-   - [ ] `Location` entity with timezone, address fields
-   - [ ] `LocationStatus` enum (ACTIVE, INACTIVE)
-   - [ ] `LocationRepository` JPA
-   - [ ] `LocationService` - CRUD operations with org context
-   - [ ] `LocationController` - POST, GET, PUT, DELETE /locations
-   - [ ] Validation: name required, timezone valid, org_id authorized
-   - [ ] Request/Response DTOs
+   - [x] `Location` entity with timezone, address fields
+   - [x] `LocationStatus` enum (ACTIVE, INACTIVE)
+   - [x] `LocationRepository` JPA
+   - [x] `LocationService` - CRUD operations with org context
+   - [x] `LocationController` - POST, GET, PUT, DELETE /locations
+   - [x] Validation: name required, timezone valid, org_id authorized
+   - [x] Request/Response DTOs
 
 2. **Resource Module** `resource/`
-   - [ ] `Resource` entity (type, capacity, pricing, slot constraints)
-   - [ ] `ResourceType` enum (ROOM, COURT, STUDIO, EQUIPMENT)
-   - [ ] `ResourceStatus` enum (ACTIVE, INACTIVE, HIDDEN)
-   - [ ] `ResourceImage` entity for photo URLs
-   - [ ] `ResourceRepository`, `ResourceImageRepository` JPA
-   - [ ] `ResourceService` - CRUD with location/org context
-   - [ ] `ResourceController` - POST, GET, PUT /resources
-   - [ ] Request/Response DTOs including pricing
+   - [x] `Resource` entity (type, capacity, pricing, slot constraints)
+   - [x] `ResourceType` enum (ROOM, COURT, STUDIO, EQUIPMENT)
+   - [x] `ResourceStatus` enum (ACTIVE, INACTIVE, HIDDEN)
+   - [x] `ResourceImage` entity for photo URLs
+   - [x] `ResourceRepository`, `ResourceImageRepository` JPA
+   - [x] `ResourceService` - CRUD with location/org context
+   - [x] `ResourceController` - POST, GET, PUT /resources
+   - [x] Request/Response DTOs including pricing
 
 3. **Permission Model**
-   - [ ] `@RequireOrgAccess` annotation to check org membership
-   - [ ] `@RequireRole` annotation to check staff role
-   - [ ] Service-layer authorization checks in all CRUD
+   - [x] `@RequireOrgAccess` annotation to check org membership
+   - [x] `@RequireRole` annotation to check staff role
+   - [x] Service-layer authorization checks in all CRUD
 
 ### Testing
 - Integration tests for location CRUD with org isolation
@@ -109,30 +109,30 @@ Build a reservation operations SaaS for small offline businesses. Focus on time-
 
 ### Tasks
 1. **Availability Module** `availability/`
-   - [ ] `AvailabilityRule` entity (day_of_week, start_time, end_time, lead_time, same_day_cutoff)
-   - [ ] `BlackoutPeriod` entity (date ranges when resource unavailable)
-   - [ ] `AvailabilityRuleRepository`, `BlackoutPeriodRepository` JPA
-   - [ ] `AvailabilityService` - CRUD for rules and blackouts
-   - [ ] `AvailabilityController` - manage rules and blackouts
+   - [x] `AvailabilityRule` entity (day_of_week, start_time, end_time, lead_time, same_day_cutoff)
+   - [x] `BlackoutPeriod` entity (date ranges when resource unavailable)
+   - [x] `AvailabilityRuleRepository`, `BlackoutPeriodRepository` JPA
+   - [x] `AvailabilityService` - CRUD for rules and blackouts
+   - [x] `AvailabilityController` - manage rules and blackouts
 
 2. **Slot Generation & Conflict Logic** (Core Domain)
-   - [ ] `SlotCalculator` domain service
+   - [x] `SlotCalculator` domain service
      - Generate available slots for a resource on a given date
      - Consider: availability rules, blackout periods, buffer times, min/max duration
      - Account for timezone
-   - [ ] `ReservationConflictChecker` domain service
+   - [x] `ReservationConflictChecker` domain service
      - Detect overlaps with existing reservations
      - Account for cleanup buffer
-   - [ ] `AvailableSlotsRequest` DTO (resource_id, date, duration_minutes)
-   - [ ] `AvailableSlotResponse` DTO (list of [start_time, end_time] slots)
-   - [ ] Public API: GET /public/resources/{id}/available-slots?date=YYYY-MM-DD&duration=60
+   - [x] `AvailableSlotsRequest` DTO (resource_id, date, duration_minutes)
+   - [x] `AvailableSlotResponse` DTO (list of [start_time, end_time] slots)
+   - [x] Public API: GET /public/resources/{id}/available-slots?date=YYYY-MM-DD&duration=60
 
 3. **Reservation Module - Part 1** `reservation/`
-   - [ ] `Reservation` entity (basic fields from schema)
-   - [ ] `ReservationStatus` enum (PENDING, CONFIRMED, CANCELLED, COMPLETED, NO_SHOW)
-   - [ ] `ReservationRepository` JPA
-   - [ ] `ReservationCodeGenerator` - generate unique booking codes (e.g., RES-20250503-ABC123)
-   - [ ] DTOs: `PublicCreateReservationRequest`, `PublicReservationResponse`
+   - [x] `Reservation` entity (basic fields from schema)
+   - [x] `ReservationStatus` enum (PENDING, CONFIRMED, CANCELLED, COMPLETED, NO_SHOW)
+   - [x] `ReservationRepository` JPA
+   - [x] `ReservationCodeGenerator` - generate unique booking codes (e.g., RES-20250503-ABC123)
+   - [x] DTOs: `PublicCreateReservationRequest`, `PublicReservationResponse`
 
 ### Testing
 - Unit tests for slot generation with various availability rules
@@ -158,51 +158,51 @@ Build a reservation operations SaaS for small offline businesses. Focus on time-
 
 ### Tasks
 1. **Reservation Module - Part 2** `reservation/`
-   - [ ] `ReservationService` - create, confirm, cancel, complete, mark_no_show
-   - [ ] `ReservationPolicyValidator` domain service
+   - [x] `ReservationService` - create, confirm, cancel, complete, mark_no_show
+   - [x] `ReservationPolicyValidator` domain service
      - Validate lead time constraints
      - Validate min/max booking duration
      - Validate customer can book (e.g., no overlapping confirmed bookings)
      - Check refund policies on cancellation
-   - [ ] `PublicReservationController` - POST /public/reservations (customer booking)
-   - [ ] `AdminReservationController` - POST /admin/reservations/{id}/confirm, /cancel, /mark-completed
-   - [ ] Implement idempotency with reservation_code as unique key
+   - [x] `PublicReservationController` - POST /public/reservations (customer booking)
+   - [x] `AdminReservationController` - POST /admin/reservations/{id}/confirm, /cancel, /mark-completed
+   - [x] Implement idempotency with reservation_code as unique key
 
 2. **Customer Module** `customer/`
-   - [ ] `Customer` entity (name, email, phone, memo)
-   - [ ] `CustomerRepository` JPA
-   - [ ] `CustomerService` - create or lookup customer
-   - [ ] Link customer to organization for history tracking
+   - [x] `Customer` entity (name, email, phone, memo)
+   - [x] `CustomerRepository` JPA
+   - [x] `CustomerService` - create or lookup customer
+   - [x] Link customer to organization for history tracking
 
 3. **Payment Module** `payment/`
-   - [ ] `Payment` entity (payment_status, paid_amount, refunded_amount, transaction_ref)
-   - [ ] `PaymentStatus` enum (UNPAID, PARTIALLY_PAID, PAID, REFUNDED)
-   - [ ] `PaymentRepository` JPA
-   - [ ] `PaymentService` - create payment record on reservation creation
-   - [ ] Mark UNPAID initially, allow admin to mark PAID (offline payment for MVP)
-   - [ ] `PaymentController` - GET /admin/reservations/{id}/payment, PUT to update status
+   - [x] `Payment` entity (payment_status, paid_amount, refunded_amount, transaction_ref)
+   - [x] `PaymentStatus` enum (UNPAID, PARTIALLY_PAID, PAID, REFUNDED)
+   - [x] `PaymentRepository` JPA
+   - [x] `PaymentService` - create payment record on reservation creation
+   - [x] Mark UNPAID initially, allow admin to mark PAID (offline payment for MVP)
+   - [x] `PaymentController` - GET /admin/reservations/{id}/payment, PUT to update status
 
 4. **Addon Support** `reservation/`
-   - [ ] `Addon` entity (name, price, status)
-   - [ ] `ReservationAddon` junction (reservation + addon + quantity + line_amount)
-   - [ ] `AddonService`, `AddonRepository` JPA
-   - [ ] `PublicCreateReservationRequest` includes optional addon_ids array
-   - [ ] Calculate total_amount = base_amount + addon_amount - discount_amount
+   - [x] `Addon` entity (name, price, status)
+   - [x] `ReservationAddon` junction (reservation + addon + quantity + line_amount)
+   - [x] `AddonService`, `AddonRepository` JPA
+   - [x] `PublicCreateReservationRequest` includes optional addon_ids array
+   - [x] Calculate total_amount = base_amount + addon_amount - discount_amount
 
 5. **Notification Skeleton** `notification/`
-   - [ ] `NotificationLog` entity (channel, template_code, delivery_status, recipient)
-   - [ ] `NotificationService` - log notification intent (no actual email send yet)
-   - [ ] Trigger logs on: reservation created, confirmed, cancelled
-   - [ ] Placeholder for integration with email provider
+   - [x] `NotificationLog` entity (channel, template_code, delivery_status, recipient)
+   - [x] `NotificationService` - log notification intent (no actual email send yet)
+   - [x] Trigger logs on: reservation created, confirmed, cancelled
+   - [x] Placeholder for integration with email provider
 
 6. **Reservation Workflow Endpoints**
-   - [ ] POST /public/reservations - create (PENDING status)
-   - [ ] GET /admin/reservations - list with filters (status, date range, customer)
-   - [ ] POST /admin/reservations/{id}/confirm - approve (PENDING → CONFIRMED)
-   - [ ] POST /admin/reservations/{id}/cancel - reject/cancel with refund logic
-   - [ ] POST /admin/reservations/{id}/complete - mark completed after use (CONFIRMED → COMPLETED)
-   - [ ] POST /admin/reservations/{id}/no-show - mark no-show (for policy tracking)
-   - [ ] GET /customers/{id}/reservations - customer history
+   - [x] POST /public/reservations - create (PENDING status)
+   - [x] GET /admin/reservations - list with filters (status, date range, customer)
+   - [x] POST /admin/reservations/{id}/confirm - approve (PENDING → CONFIRMED)
+   - [x] POST /admin/reservations/{id}/cancel - reject/cancel with refund logic
+   - [x] POST /admin/reservations/{id}/complete - mark completed after use (CONFIRMED → COMPLETED)
+   - [x] POST /admin/reservations/{id}/no-show - mark no-show (for policy tracking)
+   - [x] GET /customers/{id}/reservations - customer history
 
 ### Testing
 - Integration test: create reservation → verify PENDING → confirm → CONFIRMED
@@ -230,19 +230,19 @@ Build a reservation operations SaaS for small offline businesses. Focus on time-
 
 ### Tasks
 1. **Dashboard Module** `dashboard/`
-   - [ ] `DashboardQueryService` - aggregation queries (no persistence)
-   - [ ] `UtilizationMetrics` DTO (total slots, booked, utilization %)
-   - [ ] `RevenueMetrics` DTO (total_revenue, payment_status breakdown)
-   - [ ] `DashboardController`:
+   - [x] `DashboardQueryService` - aggregation queries (no persistence)
+   - [x] `UtilizationMetrics` DTO (total slots, booked, utilization %)
+   - [x] `RevenueMetrics` DTO (total_revenue, payment_status breakdown)
+   - [x] `DashboardController`:
      - GET /admin/dashboard/summary - daily metrics
      - GET /admin/dashboard/utilization?location_id=&date_range= - resource utilization
      - GET /admin/dashboard/revenue - payment status breakdown
      - GET /admin/dashboard/calendar?location_id=&month= - calendar view data
 
 2. **Staff Notes** `reservation/`
-   - [ ] `StaffNote` entity (content, author, created_at)
-   - [ ] `StaffNoteService` - add notes to reservation
-   - [ ] POST /admin/reservations/{id}/notes - add note
+   - [x] `StaffNote` entity (content, author, created_at)
+   - [x] `StaffNoteService` - add notes to reservation
+   - [x] POST /admin/reservations/{id}/notes - add note
 
 ### Testing
 - Integration test: verify metrics calculated correctly with sample reservations
