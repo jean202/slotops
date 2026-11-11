@@ -312,8 +312,8 @@ class OrganizationControllerTest {
                 .andExpect(status().isForbidden());
     }
 
-    @Disabled("FINDINGS.md #5: addMember does not verify the target user exists, so membership rows "
-            + "can be created for arbitrary user ids")
+    @Disabled("FINDINGS.md #5: addMember does not verify the target user exists; on the H2 test schema a "
+            + "membership row is created for an arbitrary id, on PostgreSQL the FK turns it into a 500")
     @Test
     void rejectsAddingUserThatDoesNotExist() throws Exception {
         mockMvc.perform(post("/organizations/3001/members")
