@@ -7,7 +7,7 @@ import java.lang.annotation.Target;
 
 /**
  * Marks a controller (or handler method) whose path carries an {@code orgId}
- * template variable and requires the caller to be a member of that org.
+ * (or {@code organizationId}) template variable and requires the caller to be a member of that org.
  * Enforced by {@link OrgAccessAspect} before the handler runs.
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
