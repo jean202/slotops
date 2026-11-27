@@ -321,8 +321,6 @@ class OrganizationControllerTest {
         assertThat(memberCount()).isEqualTo(3);
     }
 
-    @Disabled("FINDINGS.md #5: addMember does not verify the target user exists; on the H2 test schema a "
-            + "membership row is created for an arbitrary id, on PostgreSQL the FK turns it into a 500")
     @Test
     void rejectsAddingUserThatDoesNotExist() throws Exception {
         mockMvc.perform(post("/organizations/3001/members")
