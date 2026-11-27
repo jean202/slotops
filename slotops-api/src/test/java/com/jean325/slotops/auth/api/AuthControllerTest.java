@@ -197,8 +197,6 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
-    @Disabled("FINDINGS.md #2: AuthService.login never checks UserStatus, so SUSPENDED/INACTIVE "
-            + "users still receive tokens")
     @Test
     void loginRejectsSuspendedUser() throws Exception {
         signup();
@@ -259,6 +257,41 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/refresh").contentType("application/json").content(body))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
+    }
+
+    @Test
+    void loginRejectsInactiveUser() throws Exception {
+        signup();
+        jdbcTemplate.update("update users set status = 'INACTIVE' where email = 'owner@example.com'");
+
+        mockMvc.perform(post("/auth/login").contentType("application/json").content(LOGIN_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+    }
+
+    @Test
+    void loginWithWrongPasswordDoesNotRevealSuspension() throws Exception {
+        signup();
+        jdbcTemplate.update("update users set status = 'SUSPENDED' where email = 'owner@example.com'");
+
+        mockMvc.perform(post("/auth/login").contentType("application/json").content("""
+                        { "email": "owner@example.com", "password": "wrong-password" }
+                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
+    @Test
+    void refreshRejectsUserSuspendedAfterLogin() throws Exception {
+        signup();
+        JsonNode loggedIn = login();
+        jdbcTemplate.update("update users set status = 'SUSPENDED' where email = 'owner@example.com'");
+
+        String body = objectMapper.writeValueAsString(
+                java.util.Map.of("refreshToken", loggedIn.get("refreshToken").asText()));
+        mockMvc.perform(post("/auth/refresh").contentType("application/json").content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
     }
 
     @Test

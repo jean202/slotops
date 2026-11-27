@@ -2,6 +2,7 @@ package com.jean325.slotops.auth.application;
 
 import com.jean325.slotops.auth.domain.User;
 import com.jean325.slotops.auth.domain.UserRepository;
+import com.jean325.slotops.auth.domain.UserStatus;
 import com.jean325.slotops.auth.dto.LoginRequest;
 import com.jean325.slotops.auth.dto.LoginResponse;
 import com.jean325.slotops.auth.dto.SignupRequest;
@@ -66,6 +67,8 @@ public class AuthService {
             );
         }
 
+        requireActive(user);
+
         String accessToken = tokenProvider.generateAccessToken(user.getId(), user.getEmail());
         String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
 
@@ -98,6 +101,8 @@ public class AuthService {
                 HttpStatus.NOT_FOUND
             ));
 
+        requireActive(user);
+
         String newAccessToken = tokenProvider.generateAccessToken(user.getId(), user.getEmail());
         String newRefreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
 
@@ -109,5 +114,17 @@ public class AuthService {
             newRefreshToken,
             3600000
         );
+    }
+
+    // Checked after the password so the account status is not revealed to callers without credentials.
+    // Access tokens already issued stay valid until they expire (the JWT filter does not hit the DB).
+    private void requireActive(User user) {
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new ApiException(
+                "ACCOUNT_NOT_ACTIVE",
+                "This account is not active",
+                HttpStatus.FORBIDDEN
+            );
+        }
     }
 }
