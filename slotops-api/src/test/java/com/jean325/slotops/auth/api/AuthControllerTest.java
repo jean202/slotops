@@ -125,8 +125,6 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("name"));
     }
 
-    @Disabled("FINDINGS.md #3: SignupRequest.email has @Email but no @NotBlank, so a missing email "
-            + "passes validation and fails later at the DB instead of returning 400")
     @Test
     void signupRejectsMissingEmail() throws Exception {
         String body = """
@@ -185,6 +183,15 @@ class AuthControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(unknownEmail).isEqualTo(wrongPassword);
+    }
+
+    @Test
+    void loginRejectsMissingEmail() throws Exception {
+        mockMvc.perform(post("/auth/login").contentType("application/json").content("""
+                        { "password": "password123" }
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     @Test
