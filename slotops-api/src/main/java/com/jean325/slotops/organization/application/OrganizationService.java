@@ -117,6 +117,16 @@ public class OrganizationService {
             );
         }
 
+        // Only an OWNER may grant OWNER; otherwise a MANAGER could escalate privileges.
+        if (request.role() == OrganizationMemberRole.OWNER &&
+            currentMember.getRole() != OrganizationMemberRole.OWNER) {
+            throw new ApiException(
+                "FORBIDDEN",
+                "Only OWNER can grant the OWNER role",
+                HttpStatus.FORBIDDEN
+            );
+        }
+
         // Check if user is already a member
         if (memberRepository.findByOrganizationIdAndUserId(organizationId, request.userId()).isPresent()) {
             throw new ApiException(
