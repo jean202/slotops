@@ -261,8 +261,6 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
     }
 
-    @Disabled("FINDINGS.md #1: access and refresh tokens are indistinguishable (no token-type claim), "
-            + "so a short-lived access token can be exchanged for a fresh 7-day refresh token")
     @Test
     void refreshRejectsAccessTokenUsedAsRefreshToken() throws Exception {
         signup();

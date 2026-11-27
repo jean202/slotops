@@ -80,7 +80,7 @@ public class AuthService {
     }
 
     public LoginResponse refreshToken(TokenRefreshRequest request) {
-        if (!tokenProvider.isTokenValid(request.refreshToken())) {
+        if (!tokenProvider.isRefreshTokenValid(request.refreshToken())) {
             throw new ApiException(
                 "INVALID_REFRESH_TOKEN",
                 "Invalid or expired refresh token",

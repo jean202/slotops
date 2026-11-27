@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class JwtTokenProvider {
+    private static final String TOKEN_TYPE_CLAIM = "typ";
+    private static final String ACCESS = "access";
+    private static final String REFRESH = "refresh";
+
     private final SecretKey key;
     private final long accessTokenExpirationMs;
     private final long refreshTokenExpirationMs;
@@ -27,25 +31,21 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(Long userId, String email) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + accessTokenExpirationMs);
-
-        return Jwts.builder()
-            .subject(email)
-            .claim("userId", userId)
-            .issuedAt(now)
-            .expiration(expiryDate)
-            .signWith(key, SignatureAlgorithm.HS256)
-            .compact();
+        return generateToken(userId, email, ACCESS, accessTokenExpirationMs);
     }
 
     public String generateRefreshToken(Long userId, String email) {
+        return generateToken(userId, email, REFRESH, refreshTokenExpirationMs);
+    }
+
+    private String generateToken(Long userId, String email, String type, long expirationMs) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + refreshTokenExpirationMs);
+        Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
             .subject(email)
             .claim("userId", userId)
+            .claim(TOKEN_TYPE_CLAIM, type)
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key, SignatureAlgorithm.HS256)
@@ -67,6 +67,24 @@ public class JwtTokenProvider {
         try {
             parseClaims(token);
             return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Valid signature/expiry and issued as an access token (usable for API authentication). */
+    public boolean isAccessTokenValid(String token) {
+        return hasType(token, ACCESS);
+    }
+
+    /** Valid signature/expiry and issued as a refresh token (usable only at /auth/refresh). */
+    public boolean isRefreshTokenValid(String token) {
+        return hasType(token, REFRESH);
+    }
+
+    private boolean hasType(String token, String type) {
+        try {
+            return type.equals(parseClaims(token).get(TOKEN_TYPE_CLAIM, String.class));
         } catch (Exception e) {
             return false;
         }

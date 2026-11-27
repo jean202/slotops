@@ -105,6 +105,14 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void rejectsRefreshTokenUsedAsAccessToken() throws Exception {
+        String refresh = tokenProvider.generateRefreshToken(1001L, "member@example.com");
+
+        mockMvc.perform(get("/organizations").header("Authorization", "Bearer " + refresh))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void validTokenIdentifiesTheCallerByUserId() throws Exception {
         mockMvc.perform(get("/organizations").header("Authorization", bearer(1001L)))
                 .andExpect(status().isOk())
