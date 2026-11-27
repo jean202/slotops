@@ -340,8 +340,6 @@ class ResourceControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Disabled("FINDINGS.md #8: deleting a resource that has reservations (or availability rules) hits "
-            + "the FK constraint and surfaces as an unhandled 500 instead of a 409")
     @Test
     void deletingResourceWithReservationsIsRejectedCleanly() throws Exception {
         jdbcTemplate.execute("""
@@ -363,5 +361,22 @@ class ResourceControllerTest {
 
         mockMvc.perform(delete(BASE + "/3001").requestAttr("userId", MEMBER))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void deletingResourceWithAvailabilityRulesIsRejectedCleanly() throws Exception {
+        jdbcTemplate.execute("""
+                insert into availability_rules (
+                    resource_id, day_of_week, start_time, end_time, is_open, lead_time_minutes,
+                    created_at, updated_at
+                ) values (3001, 1, '09:00', '18:00', true, 0, current_timestamp, current_timestamp)
+                """);
+
+        mockMvc.perform(delete(BASE + "/3001").requestAttr("userId", MEMBER))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("RESOURCE_IN_USE"));
+
+        Integer count = jdbcTemplate.queryForObject("select count(*) from resources where id = 3001", Integer.class);
+        assertThat(count).isEqualTo(1);
     }
 }

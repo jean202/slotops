@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
+    boolean existsByResource_Id(Long resourceId);
+
     @Query("""
             select case when count(r) > 0 then true else false end
             from Reservation r

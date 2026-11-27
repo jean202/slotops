@@ -244,8 +244,6 @@ class LocationControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Disabled("FINDINGS.md #8: deleting a location that still has resources hits the FK constraint and "
-            + "surfaces as an unhandled 500 instead of a 409 (or a defined cascade)")
     @Test
     void deletingLocationWithResourcesIsRejectedCleanly() throws Exception {
         jdbcTemplate.execute("""
@@ -260,6 +258,10 @@ class LocationControllerTest {
                 """);
 
         mockMvc.perform(delete(BASE + "/3001").requestAttr("userId", MEMBER))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("LOCATION_IN_USE"));
+
+        Integer count = jdbcTemplate.queryForObject("select count(*) from locations where id = 3001", Integer.class);
+        assertThat(count).isEqualTo(1);
     }
 }

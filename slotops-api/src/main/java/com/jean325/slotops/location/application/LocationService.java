@@ -8,6 +8,7 @@ import com.jean325.slotops.location.dto.LocationResponse;
 import com.jean325.slotops.location.dto.UpdateLocationRequest;
 import com.jean325.slotops.organization.domain.Organization;
 import com.jean325.slotops.organization.domain.OrganizationRepository;
+import com.jean325.slotops.resource.domain.ResourceRepository;
 import com.jean325.slotops.global.error.ApiException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -19,13 +20,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class LocationService {
     private final LocationRepository locationRepository;
     private final OrganizationRepository organizationRepository;
+    private final ResourceRepository resourceRepository;
 
     public LocationService(
         LocationRepository locationRepository,
-        OrganizationRepository organizationRepository
+        OrganizationRepository organizationRepository,
+        ResourceRepository resourceRepository
     ) {
         this.locationRepository = locationRepository;
         this.organizationRepository = organizationRepository;
+        this.resourceRepository = resourceRepository;
     }
 
     public LocationResponse createLocation(Long organizationId, CreateLocationRequest request, Long userId) {
@@ -108,6 +112,15 @@ public class LocationService {
                 "Location not found",
                 HttpStatus.NOT_FOUND
             ));
+
+        // Reservations reference the location too, but they always hang off one of its resources.
+        if (resourceRepository.existsByLocation_Id(locationId)) {
+            throw new ApiException(
+                "LOCATION_IN_USE",
+                "Location still has resources; delete or deactivate them first",
+                HttpStatus.CONFLICT
+            );
+        }
 
         locationRepository.delete(location);
     }
