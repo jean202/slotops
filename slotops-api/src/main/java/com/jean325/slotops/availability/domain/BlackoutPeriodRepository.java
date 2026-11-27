@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface BlackoutPeriodRepository extends JpaRepository<BlackoutPeriod, Long> {
 
+    boolean existsByResource_Id(Long resourceId);
+
     @Query("""
             select b from BlackoutPeriod b
             where b.resource.id = :resourceId

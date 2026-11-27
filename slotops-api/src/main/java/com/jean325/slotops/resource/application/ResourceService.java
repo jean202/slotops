@@ -1,5 +1,7 @@
 package com.jean325.slotops.resource.application;
 
+import com.jean325.slotops.availability.domain.AvailabilityRuleRepository;
+import com.jean325.slotops.availability.domain.BlackoutPeriodRepository;
 import com.jean325.slotops.location.domain.Location;
 import com.jean325.slotops.location.domain.LocationRepository;
 import com.jean325.slotops.resource.domain.Resource;
@@ -11,6 +13,7 @@ import com.jean325.slotops.resource.dto.ResourceResponse;
 import com.jean325.slotops.resource.dto.UpdateResourceRequest;
 import com.jean325.slotops.organization.domain.Organization;
 import com.jean325.slotops.organization.domain.OrganizationRepository;
+import com.jean325.slotops.reservation.domain.ReservationRepository;
 import com.jean325.slotops.global.error.ApiException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -24,17 +27,26 @@ public class ResourceService {
     private final ResourceImageRepository imageRepository;
     private final LocationRepository locationRepository;
     private final OrganizationRepository organizationRepository;
+    private final ReservationRepository reservationRepository;
+    private final AvailabilityRuleRepository availabilityRuleRepository;
+    private final BlackoutPeriodRepository blackoutPeriodRepository;
 
     public ResourceService(
         ResourceRepository resourceRepository,
         ResourceImageRepository imageRepository,
         LocationRepository locationRepository,
-        OrganizationRepository organizationRepository
+        OrganizationRepository organizationRepository,
+        ReservationRepository reservationRepository,
+        AvailabilityRuleRepository availabilityRuleRepository,
+        BlackoutPeriodRepository blackoutPeriodRepository
     ) {
         this.resourceRepository = resourceRepository;
         this.imageRepository = imageRepository;
         this.locationRepository = locationRepository;
         this.organizationRepository = organizationRepository;
+        this.reservationRepository = reservationRepository;
+        this.availabilityRuleRepository = availabilityRuleRepository;
+        this.blackoutPeriodRepository = blackoutPeriodRepository;
     }
 
     public ResourceResponse createResource(
@@ -175,6 +187,16 @@ public class ResourceService {
                 "FORBIDDEN",
                 "Access denied to this resource",
                 HttpStatus.FORBIDDEN
+            );
+        }
+
+        if (reservationRepository.existsByResource_Id(resourceId)
+            || availabilityRuleRepository.existsByResource_Id(resourceId)
+            || blackoutPeriodRepository.existsByResource_Id(resourceId)) {
+            throw new ApiException(
+                "RESOURCE_IN_USE",
+                "Resource has reservations or availability settings; deactivate it instead",
+                HttpStatus.CONFLICT
             );
         }
 

@@ -48,21 +48,29 @@
 - 두 컨트롤러는 경로 변수명이 `orgId`가 아니라 `organizationId`라서, `OrgAccessAspect`가 둘 다 읽도록 변경.
 - **확인 필요**: 프로덕션 동작이 바뀌는 수정이다(비멤버 200 → 403). 의도와 맞는지 리뷰해 달라.
 
-### 고치지 않고 기록만 한 것 (판단 필요)
+### 기록했던 버그 9건 — 수정 완료 (브랜치 `fix/findings-bugs`, 2026-11-27)
 
-번호는 테스트의 `@Disabled` 사유에 적힌 번호와 같다.
+번호는 원래 `@Disabled` 사유의 번호와 같다. `@Disabled`는 모두 제거됐고, `./gradlew clean test` 기준 309 tests / skipped 0 / failures 0 / errors 0.
 
-| # | 내용 | 재현 테스트 |
-|---|---|---|
-| 1 | **액세스 토큰을 리프레시 토큰으로 쓸 수 있다.** 두 토큰에 종류 구분 클레임이 없어 `/auth/refresh`가 액세스 토큰을 받아 7일짜리 리프레시 토큰을 새로 발급한다. 반대로 리프레시 토큰도 API 인증에 통과한다. | `AuthControllerTest.refreshRejectsAccessTokenUsedAsRefreshToken` |
-| 2 | **정지된 사용자도 로그인된다.** `AuthService.login`/`refreshToken`이 `UserStatus`(INACTIVE/SUSPENDED)를 확인하지 않는다. JWT 필터도 사용자 상태·존재를 확인하지 않는다. | `AuthControllerTest.loginRejectsSuspendedUser` |
-| 3 | **이메일 없는 회원가입이 500.** `SignupRequest.email`에 `@Email`만 있고 `@NotBlank`가 없어 null이 검증을 통과, DB NOT NULL 위반으로 터진다. `LoginRequest.email`도 동일(이쪽은 401로 끝남). | `AuthControllerTest.signupRejectsMissingEmail` |
-| 4 | **MANAGER가 OWNER 역할을 부여할 수 있다.** `addMember`가 호출자 역할만 보고 부여하려는 역할은 보지 않는다. | `OrganizationControllerTest.managerCannotGrantOwnerRole` |
-| 5 | **존재하지 않는 사용자를 멤버로 추가.** 대상 userId 존재 확인이 없다. H2 테스트 스키마에서는 201로 성공하고, PostgreSQL에서는 FK 위반으로 500이 될 것이다. | `OrganizationControllerTest.rejectsAddingUserThatDoesNotExist` |
-| 6 | **존재하지 않는 타임존이 저장된다.** `[A-Za-z_/]+` 패턴만 검사해 `Mars/Olympus_Mons`가 통과하고, 이후 슬롯 조회·예약의 `ZoneId.of()`에서 500이 난다. 반대로 `Etc/GMT+9` 같은 유효한 ID는 거부된다. | `LocationControllerTest.rejectsTimezoneThatIsNotARealZoneId` |
-| 7 | **수정(PUT) 요청에 검증이 없다.** `UpdateLocationRequest`, `UpdateResourceRequest`에 제약이 없어 빈 이름, 정원 0, 음수 가격을 PUT으로 쓸 수 있다(POST는 거부). | `LocationControllerTest.updateRejectsBlankName`, `ResourceControllerTest.updateRejectsInvalidValues` |
-| 8 | **하위 데이터가 있는 지점·자원 삭제가 500.** FK 위반이 처리되지 않은 `DataIntegrityViolationException`으로 올라온다. 409로 막을지, 연쇄 삭제/소프트 삭제로 할지 결정이 필요하다. `ApiExceptionHandler`에 범용 핸들러도 없다. | `LocationControllerTest.deletingLocationWithResourcesIsRejectedCleanly`, `ResourceControllerTest.deletingResourceWithReservationsIsRejectedCleanly` |
-| 9 | **최소 예약 시간 > 최대 예약 시간인 자원이 생성된다.** 교차 필드 검증이 없어 예약이 불가능한 자원이 만들어진다. | `ResourceControllerTest.rejectsMinBookingLongerThanMaxBooking` |
+| # | 내용 | 수정 | 커밋 |
+|---|---|---|---|
+| 1 | 액세스 토큰을 리프레시 토큰으로(반대도) 쓸 수 있었다 | 토큰에 `typ`(access/refresh) 클레임 추가. JWT 필터는 access만, `/auth/refresh`는 refresh만 통과 | `ed4bcd7` |
+| 2 | 정지·비활성 사용자도 로그인·리프레시됐다 | 로그인(비밀번호 확인 후)·리프레시에서 ACTIVE 아니면 403 `ACCOUNT_NOT_ACTIVE`. JWT 필터는 DB 조회 안 함 | `56ddb91` |
+| 3 | 이메일 없는 회원가입이 500 | `SignupRequest`/`LoginRequest.email`에 `@NotBlank` | `6dd1257` |
+| 4 | MANAGER가 OWNER 역할을 부여할 수 있었다 | OWNER 부여는 호출자가 OWNER일 때만(아니면 403) | `33d6c76` |
+| 5 | 존재하지 않는 사용자를 멤버로 추가 | 대상 사용자 존재 확인, 없으면 404 `USER_NOT_FOUND` | `6a6f821` |
+| 6 | 존재하지 않는 타임존이 저장됐다 | 정규식 대신 `@ValidZoneId`(`ZoneId.of`) 검증. `Etc/GMT+9` 같은 유효 ID도 이제 허용 | `97d301a` |
+| 7 | PUT 요청에 검증이 없었다 | `UpdateLocationRequest`/`UpdateResourceRequest`에 제약 + 컨트롤러 `@Valid`. null은 "변경 안 함" 유지 | `a1bb6f7` |
+| 8 | 하위 데이터가 있는 지점·자원 삭제가 500 | 삭제 전 확인 후 409 `LOCATION_IN_USE`/`RESOURCE_IN_USE`(지점: 자원 존재 / 자원: 예약·운영 규칙·블랙아웃 존재) | `f4961c7` |
+| 9 | 최소 예약 시간 > 최대 예약 시간인 자원이 생성됐다 | `CreateResourceRequest`에 클래스 수준 검증, 오류는 `maxBookingMinutes` 필드로 보고 | `c30b6ce` |
+
+수정하며 남은 것(판단 필요):
+
+- **#1 배포 영향**: 배포 전에 발급된 토큰에는 `typ`가 없어 전부 무효가 된다. 사용자는 한 번 다시 로그인해야 한다.
+- **#2 한계**: 정지 시점에 이미 발급된 액세스 토큰은 만료(1시간)까지 유효하다. 즉시 차단이 필요하면 토큰 블랙리스트나 필터 DB 조회가 필요한데, 정책상 넣지 않았다.
+- **#8 경쟁 조건**: 확인 후 삭제 사이에 다른 요청이 예약을 만들면 PostgreSQL에서는 여전히 FK 위반 500이 날 수 있다. `ApiExceptionHandler`에 `DataIntegrityViolationException` 범용 핸들러는 넣지 않았다(NOT NULL 위반 등 다른 원인까지 409로 덮을 수 있어서).
+- **#4 범위**: OWNER 부여만 막았다. MANAGER가 MANAGER를 부여하는 것은 여전히 허용된다(재현 테스트가 요구하지 않았고 기존 동작 유지).
+- 운영 스키마 변경은 없어서 Flyway 마이그레이션은 추가하지 않았다.
 
 ## 4. 사람이 확인할 항목
 

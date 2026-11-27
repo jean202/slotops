@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface AvailabilityRuleRepository extends JpaRepository<AvailabilityRule, Long> {
 
+    boolean existsByResource_Id(Long resourceId);
+
     @Query("select r from AvailabilityRule r where r.resource.id = :resourceId")
     List<AvailabilityRule> findByResourceId(@Param("resourceId") Long resourceId);
 

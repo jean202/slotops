@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -222,8 +221,14 @@ class LocationControllerTest {
         assertThat(count).isEqualTo(1);
     }
 
-    @Disabled("FINDINGS.md #6: timezone is only pattern-checked ([A-Za-z_/]+), so a non-existent zone id "
-            + "is stored and later breaks ZoneId.of() in slot calculation and booking")
+    @Test
+    void acceptsRealZoneIdOutsideTheOldPattern() throws Exception {
+        mockMvc.perform(post(BASE).requestAttr("userId", MEMBER).contentType("application/json")
+                        .content("{ \"name\": \"Offset Base\", \"timezone\": \"Etc/GMT+9\" }"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.timezone").value("Etc/GMT+9"));
+    }
+
     @Test
     void rejectsTimezoneThatIsNotARealZoneId() throws Exception {
         mockMvc.perform(post(BASE).requestAttr("userId", MEMBER).contentType("application/json")
@@ -231,8 +236,6 @@ class LocationControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Disabled("FINDINGS.md #7: UpdateLocationRequest has no validation, so an existing location can be "
-            + "renamed to a blank name")
     @Test
     void updateRejectsBlankName() throws Exception {
         mockMvc.perform(put(BASE + "/3001").requestAttr("userId", MEMBER).contentType("application/json")
@@ -240,8 +243,6 @@ class LocationControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Disabled("FINDINGS.md #8: deleting a location that still has resources hits the FK constraint and "
-            + "surfaces as an unhandled 500 instead of a 409 (or a defined cascade)")
     @Test
     void deletingLocationWithResourcesIsRejectedCleanly() throws Exception {
         jdbcTemplate.execute("""
@@ -256,6 +257,10 @@ class LocationControllerTest {
                 """);
 
         mockMvc.perform(delete(BASE + "/3001").requestAttr("userId", MEMBER))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("LOCATION_IN_USE"));
+
+        Integer count = jdbcTemplate.queryForObject("select count(*) from locations where id = 3001", Integer.class);
+        assertThat(count).isEqualTo(1);
     }
 }

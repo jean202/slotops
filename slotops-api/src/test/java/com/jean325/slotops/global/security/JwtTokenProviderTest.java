@@ -63,4 +63,17 @@ class JwtTokenProviderTest {
 
         assertThat(provider.isTokenValid(tampered)).isFalse();
     }
+
+    @Test
+    void accessAndRefreshTokensAreOnlyValidForTheirOwnPurpose() {
+        String access = provider.generateAccessToken(42L, "owner@example.com");
+        String refresh = provider.generateRefreshToken(42L, "owner@example.com");
+
+        assertThat(provider.isAccessTokenValid(access)).isTrue();
+        assertThat(provider.isRefreshTokenValid(access)).isFalse();
+        assertThat(provider.isRefreshTokenValid(refresh)).isTrue();
+        assertThat(provider.isAccessTokenValid(refresh)).isFalse();
+        assertThat(provider.isAccessTokenValid(null)).isFalse();
+        assertThat(provider.isRefreshTokenValid("not-a-jwt")).isFalse();
+    }
 }

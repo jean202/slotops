@@ -1,14 +1,14 @@
 package com.jean325.slotops.location.dto;
 
+import com.jean325.slotops.global.validation.ValidZoneId;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 
 public record CreateLocationRequest(
     @NotBlank(message = "Location name cannot be blank")
     String name,
 
     @NotBlank(message = "Timezone cannot be blank")
-    @Pattern(regexp = "^[A-Za-z_/]+$", message = "Invalid timezone format")
+    @ValidZoneId
     String timezone,
 
     String phone,

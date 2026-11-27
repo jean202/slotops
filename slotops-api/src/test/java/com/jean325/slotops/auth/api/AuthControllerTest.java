@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -125,8 +124,6 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("name"));
     }
 
-    @Disabled("FINDINGS.md #3: SignupRequest.email has @Email but no @NotBlank, so a missing email "
-            + "passes validation and fails later at the DB instead of returning 400")
     @Test
     void signupRejectsMissingEmail() throws Exception {
         String body = """
@@ -188,6 +185,15 @@ class AuthControllerTest {
     }
 
     @Test
+    void loginRejectsMissingEmail() throws Exception {
+        mockMvc.perform(post("/auth/login").contentType("application/json").content("""
+                        { "password": "password123" }
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
     void loginRejectsBlankPassword() throws Exception {
         String body = """
                 { "email": "owner@example.com", "password": "" }
@@ -197,8 +203,6 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
-    @Disabled("FINDINGS.md #2: AuthService.login never checks UserStatus, so SUSPENDED/INACTIVE "
-            + "users still receive tokens")
     @Test
     void loginRejectsSuspendedUser() throws Exception {
         signup();
@@ -261,8 +265,41 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
     }
 
-    @Disabled("FINDINGS.md #1: access and refresh tokens are indistinguishable (no token-type claim), "
-            + "so a short-lived access token can be exchanged for a fresh 7-day refresh token")
+    @Test
+    void loginRejectsInactiveUser() throws Exception {
+        signup();
+        jdbcTemplate.update("update users set status = 'INACTIVE' where email = 'owner@example.com'");
+
+        mockMvc.perform(post("/auth/login").contentType("application/json").content(LOGIN_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+    }
+
+    @Test
+    void loginWithWrongPasswordDoesNotRevealSuspension() throws Exception {
+        signup();
+        jdbcTemplate.update("update users set status = 'SUSPENDED' where email = 'owner@example.com'");
+
+        mockMvc.perform(post("/auth/login").contentType("application/json").content("""
+                        { "email": "owner@example.com", "password": "wrong-password" }
+                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
+    @Test
+    void refreshRejectsUserSuspendedAfterLogin() throws Exception {
+        signup();
+        JsonNode loggedIn = login();
+        jdbcTemplate.update("update users set status = 'SUSPENDED' where email = 'owner@example.com'");
+
+        String body = objectMapper.writeValueAsString(
+                java.util.Map.of("refreshToken", loggedIn.get("refreshToken").asText()));
+        mockMvc.perform(post("/auth/refresh").contentType("application/json").content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
+    }
+
     @Test
     void refreshRejectsAccessTokenUsedAsRefreshToken() throws Exception {
         signup();

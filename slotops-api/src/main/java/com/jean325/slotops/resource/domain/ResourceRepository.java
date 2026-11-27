@@ -17,6 +17,8 @@ public interface ResourceRepository extends JpaRepository<Resource, Long> {
     @Query("select r from Resource r where r.id = :id and r.organization.id = :organizationId")
     Optional<Resource> findByIdAndOrganizationId(@Param("id") Long id, @Param("organizationId") Long organizationId);
 
+    boolean existsByLocation_Id(Long locationId);
+
     @Query("select r from Resource r where r.location.id = :locationId")
     List<Resource> findByLocationId(@Param("locationId") Long locationId);
 

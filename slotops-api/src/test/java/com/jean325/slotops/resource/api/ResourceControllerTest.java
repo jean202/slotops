@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -309,8 +308,17 @@ class ResourceControllerTest {
 
     // --- known gaps ---
 
-    @Disabled("FINDINGS.md #9: no cross-field validation, so a resource whose minimum booking is longer "
-            + "than its maximum is accepted and can then never be booked")
+    @Test
+    void acceptsMinBookingEqualToMaxBooking() throws Exception {
+        ObjectNode body = (ObjectNode) objectMapper.readTree(VALID);
+        body.put("minBookingMinutes", 120);
+        body.put("maxBookingMinutes", 120);
+
+        mockMvc.perform(post(BASE).requestAttr("userId", MEMBER)
+                        .contentType("application/json").content(body.toString()))
+                .andExpect(status().isCreated());
+    }
+
     @Test
     void rejectsMinBookingLongerThanMaxBooking() throws Exception {
         ObjectNode body = (ObjectNode) objectMapper.readTree(VALID);
@@ -319,11 +327,22 @@ class ResourceControllerTest {
 
         mockMvc.perform(post(BASE).requestAttr("userId", MEMBER)
                         .contentType("application/json").content(body.toString()))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.length()").value(1))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("maxBookingMinutes"));
     }
 
-    @Disabled("FINDINGS.md #7: UpdateResourceRequest has no validation, so capacity 0 or a negative "
-            + "price can be written through PUT even though POST rejects them")
+    @Test
+    void updateRejectsWhitespaceOnlyName() throws Exception {
+        mockMvc.perform(put(BASE + "/3001").requestAttr("userId", MEMBER).contentType("application/json")
+                        .content("{ \"name\": \"   \" }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("name"));
+
+        String name = jdbcTemplate.queryForObject("select name from resources where id = 3001", String.class);
+        assertThat(name).isNotBlank();
+    }
+
     @Test
     void updateRejectsInvalidValues() throws Exception {
         mockMvc.perform(put(BASE + "/3001").requestAttr("userId", MEMBER).contentType("application/json")
@@ -331,8 +350,6 @@ class ResourceControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Disabled("FINDINGS.md #8: deleting a resource that has reservations (or availability rules) hits "
-            + "the FK constraint and surfaces as an unhandled 500 instead of a 409")
     @Test
     void deletingResourceWithReservationsIsRejectedCleanly() throws Exception {
         jdbcTemplate.execute("""
@@ -354,5 +371,22 @@ class ResourceControllerTest {
 
         mockMvc.perform(delete(BASE + "/3001").requestAttr("userId", MEMBER))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void deletingResourceWithAvailabilityRulesIsRejectedCleanly() throws Exception {
+        jdbcTemplate.execute("""
+                insert into availability_rules (
+                    resource_id, day_of_week, start_time, end_time, is_open, lead_time_minutes,
+                    created_at, updated_at
+                ) values (3001, 1, '09:00', '18:00', true, 0, current_timestamp, current_timestamp)
+                """);
+
+        mockMvc.perform(delete(BASE + "/3001").requestAttr("userId", MEMBER))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("RESOURCE_IN_USE"));
+
+        Integer count = jdbcTemplate.queryForObject("select count(*) from resources where id = 3001", Integer.class);
+        assertThat(count).isEqualTo(1);
     }
 }

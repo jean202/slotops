@@ -1,5 +1,6 @@
 package com.jean325.slotops.organization.application;
 
+import com.jean325.slotops.auth.domain.UserRepository;
 import com.jean325.slotops.organization.domain.Organization;
 import com.jean325.slotops.organization.domain.OrganizationMember;
 import com.jean325.slotops.organization.domain.OrganizationMemberRepository;
@@ -20,13 +21,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository memberRepository;
+    private final UserRepository userRepository;
 
     public OrganizationService(
         OrganizationRepository organizationRepository,
-        OrganizationMemberRepository memberRepository
+        OrganizationMemberRepository memberRepository,
+        UserRepository userRepository
     ) {
         this.organizationRepository = organizationRepository;
         this.memberRepository = memberRepository;
+        this.userRepository = userRepository;
     }
 
     public OrganizationResponse createOrganization(CreateOrganizationRequest request, Long ownerUserId) {
@@ -114,6 +118,24 @@ public class OrganizationService {
                 "FORBIDDEN",
                 "Only OWNER or MANAGER can add members",
                 HttpStatus.FORBIDDEN
+            );
+        }
+
+        // Only an OWNER may grant OWNER; otherwise a MANAGER could escalate privileges.
+        if (request.role() == OrganizationMemberRole.OWNER &&
+            currentMember.getRole() != OrganizationMemberRole.OWNER) {
+            throw new ApiException(
+                "FORBIDDEN",
+                "Only OWNER can grant the OWNER role",
+                HttpStatus.FORBIDDEN
+            );
+        }
+
+        if (!userRepository.existsById(request.userId())) {
+            throw new ApiException(
+                "USER_NOT_FOUND",
+                "User not found",
+                HttpStatus.NOT_FOUND
             );
         }
 

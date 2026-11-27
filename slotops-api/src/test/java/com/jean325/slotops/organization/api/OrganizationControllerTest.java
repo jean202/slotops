@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -302,18 +301,25 @@ class OrganizationControllerTest {
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
-    @Disabled("FINDINGS.md #4: a MANAGER can add a member with role OWNER (privilege escalation); "
-            + "addMember only checks the caller is OWNER or MANAGER, not the role being granted")
+    @Test
+    void ownerCanGrantOwnerRole() throws Exception {
+        mockMvc.perform(post("/organizations/3001/members")
+                        .requestAttr("userId", OWNER)
+                        .contentType("application/json").content(addMemberBody(NEWCOMER, "OWNER")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.role").value("OWNER"));
+    }
+
     @Test
     void managerCannotGrantOwnerRole() throws Exception {
         mockMvc.perform(post("/organizations/3001/members")
                         .requestAttr("userId", MANAGER)
                         .contentType("application/json").content(addMemberBody(NEWCOMER, "OWNER")))
                 .andExpect(status().isForbidden());
+
+        assertThat(memberCount()).isEqualTo(3);
     }
 
-    @Disabled("FINDINGS.md #5: addMember does not verify the target user exists; on the H2 test schema a "
-            + "membership row is created for an arbitrary id, on PostgreSQL the FK turns it into a 500")
     @Test
     void rejectsAddingUserThatDoesNotExist() throws Exception {
         mockMvc.perform(post("/organizations/3001/members")
