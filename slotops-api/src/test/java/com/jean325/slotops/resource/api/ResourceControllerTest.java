@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -309,8 +308,17 @@ class ResourceControllerTest {
 
     // --- known gaps ---
 
-    @Disabled("FINDINGS.md #9: no cross-field validation, so a resource whose minimum booking is longer "
-            + "than its maximum is accepted and can then never be booked")
+    @Test
+    void acceptsMinBookingEqualToMaxBooking() throws Exception {
+        ObjectNode body = (ObjectNode) objectMapper.readTree(VALID);
+        body.put("minBookingMinutes", 120);
+        body.put("maxBookingMinutes", 120);
+
+        mockMvc.perform(post(BASE).requestAttr("userId", MEMBER)
+                        .contentType("application/json").content(body.toString()))
+                .andExpect(status().isCreated());
+    }
+
     @Test
     void rejectsMinBookingLongerThanMaxBooking() throws Exception {
         ObjectNode body = (ObjectNode) objectMapper.readTree(VALID);
@@ -319,7 +327,9 @@ class ResourceControllerTest {
 
         mockMvc.perform(post(BASE).requestAttr("userId", MEMBER)
                         .contentType("application/json").content(body.toString()))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.length()").value(1))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("maxBookingMinutes"));
     }
 
     @Test
