@@ -13,8 +13,8 @@ import org.springframework.web.servlet.HandlerMapping;
 
 /**
  * Enforces {@link RequireOrgAccess} at the controller boundary: reads the
- * authenticated userId (set by the JWT filter) and the {@code orgId} path
- * variable, then delegates to {@link OrgAccessGuard}.
+ * authenticated userId (set by the JWT filter) and the {@code orgId} (or
+ * {@code organizationId}) path variable, then delegates to {@link OrgAccessGuard}.
  */
 @Aspect
 @Component
@@ -47,7 +47,8 @@ public class OrgAccessAspect {
     @SuppressWarnings("unchecked")
     private Long extractOrgId(HttpServletRequest request) {
         Object vars = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
-        String orgId = vars instanceof Map<?, ?> ? ((Map<String, String>) vars).get("orgId") : null;
+        Map<String, String> pathVars = vars instanceof Map<?, ?> ? (Map<String, String>) vars : Map.of();
+        String orgId = pathVars.containsKey("orgId") ? pathVars.get("orgId") : pathVars.get("organizationId");
         if (orgId == null) {
             throw new ApiException("UNAUTHORIZED", "Organization not resolved from request path.",
                     HttpStatus.UNAUTHORIZED);

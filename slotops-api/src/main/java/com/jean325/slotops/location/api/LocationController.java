@@ -7,6 +7,7 @@ import com.jean325.slotops.location.dto.UpdateLocationRequest;
 import com.jean325.slotops.global.config.ApiResponse;
 import com.jean325.slotops.global.error.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
+import com.jean325.slotops.global.security.RequireOrgAccess;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/organizations/{organizationId}/locations")
+@RequireOrgAccess
 public class LocationController {
     private final LocationService locationService;
 
