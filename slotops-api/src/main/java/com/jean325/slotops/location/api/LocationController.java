@@ -65,7 +65,7 @@ public class LocationController {
     public ResponseEntity<ApiResponse<LocationResponse>> updateLocation(
         @PathVariable Long organizationId,
         @PathVariable Long locationId,
-        @RequestBody UpdateLocationRequest request
+        @Valid @RequestBody UpdateLocationRequest request
     ) {
         LocationResponse response = locationService.updateLocation(organizationId, locationId, request);
         return ResponseEntity.ok(ApiResponse.ok(response, "Location updated successfully"));

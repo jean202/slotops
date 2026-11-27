@@ -237,8 +237,6 @@ class LocationControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Disabled("FINDINGS.md #7: UpdateLocationRequest has no validation, so an existing location can be "
-            + "renamed to a blank name")
     @Test
     void updateRejectsBlankName() throws Exception {
         mockMvc.perform(put(BASE + "/3001").requestAttr("userId", MEMBER).contentType("application/json")

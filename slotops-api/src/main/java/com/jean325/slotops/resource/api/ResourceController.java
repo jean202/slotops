@@ -65,7 +65,7 @@ public class ResourceController {
         @PathVariable Long organizationId,
         @PathVariable Long locationId,
         @PathVariable Long resourceId,
-        @RequestBody UpdateResourceRequest request
+        @Valid @RequestBody UpdateResourceRequest request
     ) {
         ResourceResponse response = resourceService.updateResource(
             organizationId,

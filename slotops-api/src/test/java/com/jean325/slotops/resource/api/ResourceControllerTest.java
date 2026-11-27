@@ -322,8 +322,17 @@ class ResourceControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Disabled("FINDINGS.md #7: UpdateResourceRequest has no validation, so capacity 0 or a negative "
-            + "price can be written through PUT even though POST rejects them")
+    @Test
+    void updateRejectsWhitespaceOnlyName() throws Exception {
+        mockMvc.perform(put(BASE + "/3001").requestAttr("userId", MEMBER).contentType("application/json")
+                        .content("{ \"name\": \"   \" }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("name"));
+
+        String name = jdbcTemplate.queryForObject("select name from resources where id = 3001", String.class);
+        assertThat(name).isNotBlank();
+    }
+
     @Test
     void updateRejectsInvalidValues() throws Exception {
         mockMvc.perform(put(BASE + "/3001").requestAttr("userId", MEMBER).contentType("application/json")
