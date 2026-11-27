@@ -74,13 +74,17 @@
 
 ## 4. 사람이 확인할 항목
 
-1. 3절의 수정 커밋(`1708f85`)이 의도한 동작인지.
-2. #1, #2, #4는 보안 성격이라 우선순위를 높게 볼 만하다.
-3. **테스트 스키마 ≠ 운영 스키마.** 테스트는 H2 + Hibernate `create-drop`으로 돌고 Flyway `V1__init_schema.sql`은 테스트에서 전혀 실행되지 않는다. 엔티티와 마이그레이션이 어긋나도(#5의 FK 차이가 그 예) 테스트로는 잡히지 않는다. Testcontainers는 의존성에 없다.
-4. CLAUDE.md의 `./gradlew integrationTest`, `./gradlew spotlessCheck`는 `build.gradle.kts`에 정의돼 있지 않다. CI는 `./gradlew build`만 실행한다.
-5. `application.yml`에 JWT 시크릿 기본값이 평문으로 들어 있다. 운영에서 환경 변수로 덮어쓰는지 확인.
-6. 자기 조직 경로로 타 조직 자원을 실제 지점 ID와 함께 지정하면(`/organizations/{내 조직}/locations/{남의 지점}/resources/{남의 자원}`) 404가 아니라 403이 나온다. 차단은 되지만 존재 여부가 드러난다.
-7. 401 응답(`ErrorResponse`)과 그 외 오류 응답(`ApiErrorResponse`)의 JSON 형태가 다르다.
+2026-11-28 기준 상태(main `bf660df`).
+
+| # | 항목 | 상태 | 현황 / 남은 일 |
+|---|---|---|---|
+| 1 | 3절 수정 커밋 `1708f85`(Location·Resource `@RequireOrgAccess`)이 의도한 동작인지 | 완료 | PR #1 머지로 main에 반영됨(비멤버 200 → 403) |
+| 2 | #1, #2, #4 보안 버그 우선 처리 | 완료 | PR #2에서 수정(`ed4bcd7`, `56ddb91`, `33d6c76`). 3절 참고 |
+| 3 | 테스트 스키마 ≠ 운영 스키마 | 미해결 | 테스트는 여전히 H2 + `create-drop`, `spring.flyway.enabled: false`. Testcontainers 의존성 없음. 엔티티와 `V1__init_schema.sql`이 어긋나도 테스트로 안 잡힌다. 해결하려면 Testcontainers(새 의존성) 도입 여부를 정해야 한다 |
+| 4 | CLAUDE.md의 `./gradlew integrationTest`, `./gradlew spotlessCheck`가 실제로 없음 | 미해결 | `build.gradle.kts`에 두 태스크 모두 없음. CI는 `./gradlew build`만 실행. CLAUDE.md를 고칠지 태스크를 추가할지 결정 필요 |
+| 5 | `application.yml`의 JWT 시크릿 기본값이 평문 | 미해결 | `jwt.secret`이 플레이스홀더 문자열 그대로다. 저장소에 배포 설정이 없어 운영에서 덮어쓰는지는 확인할 수 없다. Spring 바인딩상 환경 변수 `JWT_SECRET`으로 덮어쓸 수 있다. 기본값을 없애 미설정 시 기동 실패하게 할지 검토 |
+| 6 | 자기 조직 경로로 타 조직 자원을 실제 지점 ID와 함께 지정하면 404 대신 403 | 미해결 | `ResourceService`의 조직 불일치 검사가 여전히 403 `FORBIDDEN`. 차단은 되지만 존재 여부가 드러난다. `CrossOrgAccessTest`는 403/404 둘 다 허용 |
+| 7 | 401 응답(`ErrorResponse`)과 그 외 오류(`ApiErrorResponse`)의 JSON 형태가 다름 | 미해결 | 401은 `{status, error, message, path}`, 나머지는 `{code, message, fieldErrors}`. 클라이언트 오류 처리 통일이 필요하면 엔트리 포인트를 `ApiErrorResponse`로 맞출 것 |
 
 ## 5. 못 한 것
 
