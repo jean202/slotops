@@ -222,8 +222,14 @@ class LocationControllerTest {
         assertThat(count).isEqualTo(1);
     }
 
-    @Disabled("FINDINGS.md #6: timezone is only pattern-checked ([A-Za-z_/]+), so a non-existent zone id "
-            + "is stored and later breaks ZoneId.of() in slot calculation and booking")
+    @Test
+    void acceptsRealZoneIdOutsideTheOldPattern() throws Exception {
+        mockMvc.perform(post(BASE).requestAttr("userId", MEMBER).contentType("application/json")
+                        .content("{ \"name\": \"Offset Base\", \"timezone\": \"Etc/GMT+9\" }"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.timezone").value("Etc/GMT+9"));
+    }
+
     @Test
     void rejectsTimezoneThatIsNotARealZoneId() throws Exception {
         mockMvc.perform(post(BASE).requestAttr("userId", MEMBER).contentType("application/json")
